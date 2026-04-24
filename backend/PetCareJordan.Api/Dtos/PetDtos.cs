@@ -58,3 +58,24 @@ public record UpdateMedicalRecordRequest(string VisitReason, string Diagnosis, s
 public record MedicalRecordDto(int Id, string VetName, string VisitReason, string Diagnosis, string Treatment, DateTime VisitDateUtc);
 
 public record VaccinationDto(int Id, string VetName, string VaccineName, DateTime? GivenOnUtc, DateTime DueDateUtc, bool IsCompleted);
+
+public record UserPetVaccinePlanDto(
+    int Id,
+    string VaccineName,
+    DateTime? GivenOnUtc,
+    DateTime DueDateUtc,
+    bool IsCompleted,
+    string Status);
+
+public record UserPetMedicalSnapshotDto(
+    int PetId,
+    string CollarId,
+    string PetName,
+    PetType PetType,
+    string Breed,
+    string PhotoUrl,
+    string HealthSummary,
+    bool IsVaccinesUpToDate,
+    int PendingVaccinesCount,
+    IEnumerable<MedicalRecordDto> MedicalHistory,
+    IEnumerable<UserPetVaccinePlanDto> VaccinePlan);

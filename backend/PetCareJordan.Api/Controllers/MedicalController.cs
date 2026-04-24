@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PetCareJordan.Api.Data;
@@ -10,6 +12,7 @@ namespace PetCareJordan.Api.Controllers;
 [Route("api/[controller]")]
 public class MedicalController(PetCareJordanContext context) : ControllerBase
 {
+    [Authorize(Roles = "Vet,Admin")]
     [HttpGet("upcoming-vaccines")]
     public async Task<ActionResult<IEnumerable<object>>> GetUpcomingVaccines()
     {
@@ -25,12 +28,82 @@ public class MedicalController(PetCareJordanContext context) : ControllerBase
                 vaccine.VaccineName,
                 vaccine.DueDateUtc,
                 PetName = vaccine.Pet!.Name,
+                PetCollarId = vaccine.Pet.CollarId,
                 OwnerName = vaccine.Pet.Owner!.FullName,
                 OwnerPhone = vaccine.Pet.Owner.PhoneNumber
             })
             .ToListAsync();
 
         return Ok(vaccines);
+    }
+
+    [Authorize(Roles = "User")]
+    [HttpGet("my-pets")]
+    public async Task<ActionResult<IEnumerable<UserPetMedicalSnapshotDto>>> GetMyPetsMedicalStatus()
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var pets = await context.Pets
+            .Where(pet => pet.OwnerId == userId)
+            .Include(pet => pet.MedicalRecords)
+                .ThenInclude(record => record.Vet)
+            .Include(pet => pet.Vaccinations)
+                .ThenInclude(vaccine => vaccine.Vet)
+            .OrderBy(pet => pet.Name)
+            .ToListAsync();
+
+        var nowDate = DateTime.UtcNow.Date;
+        var snapshots = pets.Select(pet =>
+        {
+            var medicalHistory = pet.MedicalRecords
+                .OrderByDescending(record => record.VisitDateUtc)
+                .Select(record => new MedicalRecordDto(
+                    record.Id,
+                    record.Vet?.FullName ?? "Unknown Vet",
+                    record.VisitReason,
+                    record.Diagnosis,
+                    record.Treatment,
+                    record.VisitDateUtc))
+                .ToList();
+
+            var vaccinePlan = pet.Vaccinations
+                .OrderBy(vaccine => vaccine.DueDateUtc)
+                .Select(vaccine => new UserPetVaccinePlanDto(
+                    vaccine.Id,
+                    vaccine.VaccineName,
+                    vaccine.GivenOnUtc,
+                    vaccine.DueDateUtc,
+                    vaccine.IsCompleted,
+                    GetVaccineStatus(vaccine, nowDate)))
+                .ToList();
+
+            var pendingVaccinesCount = vaccinePlan.Count(vaccine => !vaccine.IsCompleted);
+            var isUpToDate = vaccinePlan.Count > 0 &&
+                             vaccinePlan.All(vaccine => vaccine.IsCompleted || vaccine.DueDateUtc.Date > nowDate);
+
+            var latestRecord = medicalHistory.FirstOrDefault();
+            var healthSummary = latestRecord is null
+                ? "No medical records yet."
+                : $"{latestRecord.Diagnosis}. Treatment: {latestRecord.Treatment}";
+
+            return new UserPetMedicalSnapshotDto(
+                pet.Id,
+                pet.CollarId,
+                pet.Name,
+                pet.Type,
+                pet.Breed,
+                pet.PhotoUrl,
+                healthSummary,
+                isUpToDate,
+                pendingVaccinesCount,
+                medicalHistory,
+                vaccinePlan);
+        });
+
+        return Ok(snapshots);
     }
 
     [HttpPost("records")]
@@ -80,5 +153,25 @@ public class MedicalController(PetCareJordanContext context) : ControllerBase
         await context.SaveChangesAsync();
 
         return Ok(new MedicalRecordDto(record.Id, record.Vet.FullName, record.VisitReason, record.Diagnosis, record.Treatment, record.VisitDateUtc));
+    }
+
+    private static string GetVaccineStatus(VaccinationRecord vaccine, DateTime nowDate)
+    {
+        if (vaccine.IsCompleted)
+        {
+            return "Completed";
+        }
+
+        if (vaccine.DueDateUtc.Date < nowDate)
+        {
+            return "Overdue";
+        }
+
+        if (vaccine.DueDateUtc.Date <= nowDate.AddDays(14))
+        {
+            return "Due Soon";
+        }
+
+        return "Scheduled";
     }
 }

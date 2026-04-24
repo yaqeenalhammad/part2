@@ -65,3 +65,5 @@ public record CreateFoundPetReportRequest(
     string ContactPhone);
 
 public record NotificationDto(int Id, string Title, string Message, DateTime TriggerDateUtc, bool IsRead);
+
+public record UploadedImageDto(string Url, string FileName);

@@ -14,8 +14,9 @@ public class AuthController(PetCareJordanContext context, PasswordService passwo
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         var user = await context.Users
-            .FirstOrDefaultAsync(item => item.Email == request.Email);
+            .FirstOrDefaultAsync(item => item.Email == normalizedEmail);
 
         if (user is null || !passwordService.VerifyPassword(request.Password, user.PasswordHash))
         {
@@ -33,7 +34,13 @@ public class AuthController(PetCareJordanContext context, PasswordService passwo
             return BadRequest("Admin accounts cannot be created from public registration.");
         }
 
-        var emailExists = await context.Users.AnyAsync(item => item.Email == request.Email);
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        if (!normalizedEmail.EndsWith("@petcare.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("Email must use @petCare.com extension.");
+        }
+
+        var emailExists = await context.Users.AnyAsync(item => item.Email == normalizedEmail);
         if (emailExists)
         {
             return Conflict("A user with this email already exists.");
@@ -42,7 +49,7 @@ public class AuthController(PetCareJordanContext context, PasswordService passwo
         var user = new AppUser
         {
             FullName = request.FullName,
-            Email = request.Email,
+            Email = normalizedEmail,
             PasswordHash = passwordService.HashPassword(request.Password),
             PhoneNumber = request.PhoneNumber,
             City = request.City,

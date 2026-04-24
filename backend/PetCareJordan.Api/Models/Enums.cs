@@ -32,7 +32,8 @@ public enum AdoptionStatus
 public enum ReportStatus
 {
     Active = 1,
-    Resolved = 2
+    Resolved = 2,
+    Pending = 3
 }
 
 public enum NotificationType
