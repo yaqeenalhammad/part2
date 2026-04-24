@@ -16,8 +16,6 @@ public class Pet
     public string Description { get; set; } = string.Empty;
     public string PhotoUrl { get; set; } = string.Empty;
     public int OwnerId { get; set; }
-    public ModerationStatus ModerationStatus { get; set; } = ModerationStatus.Approved;
-    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public AppUser? Owner { get; set; }
     public AdoptionListing? AdoptionListing { get; set; }
     public ICollection<MedicalRecord> MedicalRecords { get; set; } = new List<MedicalRecord>();

@@ -14,8 +14,7 @@ public record AdoptionListingDto(
     string ContactMethod,
     string ContactDetails,
     AdoptionStatus Status,
-    DateTime PostedAtUtc,
-    ModerationStatus ModerationStatus);
+    DateTime PostedAtUtc);
 
 public record CreateAdoptionListingRequest(int PetId, string Story, string ContactMethod, string ContactDetails);
 
@@ -31,8 +30,7 @@ public record LostPetReportDto(
     string PhotoUrl,
     string ContactName,
     string ContactPhone,
-    ReportStatus Status,
-    ModerationStatus ModerationStatus);
+    ReportStatus Status);
 
 public record CreateLostPetReportRequest(
     string PetName,
@@ -55,8 +53,7 @@ public record FoundPetReportDto(
     string PhotoUrl,
     string ContactName,
     string ContactPhone,
-    ReportStatus Status,
-    ModerationStatus ModerationStatus);
+    ReportStatus Status);
 
 public record CreateFoundPetReportRequest(
     PetType PetType,

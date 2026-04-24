@@ -11,8 +11,7 @@ public record PetSummaryDto(
     string CollarId,
     string PhotoUrl,
     string OwnerName,
-    AdoptionStatus? AdoptionStatus,
-    ModerationStatus ModerationStatus);
+    AdoptionStatus? AdoptionStatus);
 
 public record PetDetailsDto(
     int Id,
@@ -30,7 +29,6 @@ public record PetDetailsDto(
     string PhotoUrl,
     string OwnerName,
     string OwnerPhone,
-    ModerationStatus ModerationStatus,
     IEnumerable<MedicalRecordDto> MedicalHistory,
     IEnumerable<VaccinationDto> Vaccines);
 
@@ -47,12 +45,13 @@ public record CreatePetRequest(
     bool IsNeutered,
     string Description,
     string PhotoUrl,
+    int OwnerId,
     bool PublishForAdoption,
     string? AdoptionStory,
     string? ContactMethod,
     string? ContactDetails);
 
-public record CreateMedicalRecordRequest(int PetId, string VisitReason, string Diagnosis, string Treatment, DateTime VisitDateUtc);
+public record CreateMedicalRecordRequest(int PetId, int VetId, string VisitReason, string Diagnosis, string Treatment, DateTime VisitDateUtc);
 
 public record UpdateMedicalRecordRequest(string VisitReason, string Diagnosis, string Treatment, DateTime VisitDateUtc);
 

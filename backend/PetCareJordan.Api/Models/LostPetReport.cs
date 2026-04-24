@@ -14,6 +14,4 @@ public class LostPetReport
     public string ContactName { get; set; } = string.Empty;
     public string ContactPhone { get; set; } = string.Empty;
     public ReportStatus Status { get; set; }
-    public ModerationStatus ModerationStatus { get; set; } = ModerationStatus.Approved;
-    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

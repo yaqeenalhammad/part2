@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using PetCareJordan.Api.Models;
 using PetCareJordan.Api.Services;
 
@@ -8,19 +7,17 @@ public static class SeedData
 {
     public static async Task InitializeAsync(PetCareJordanContext context)
     {
-        var passwordService = new PasswordService();
-
         if (context.Users.Any())
         {
-            await EnsureRequiredAccountsAsync(context, passwordService);
             return;
         }
 
+        var passwordService = new PasswordService();
+
         var users = new List<AppUser>
         {
-            new() { FullName = "Yaqeen Alhammad", Email = "yaqeenalhammad@gmail.com", PasswordHash = passwordService.HashPassword("yaqeen1234"), PhoneNumber = "0799001001", City = "Amman", Role = UserRole.Admin },
-            new() { FullName = "Safaa Quraan", Email = "safaaquraan2004@gmail.com", PasswordHash = passwordService.HashPassword("safaa1234"), PhoneNumber = "0799001002", City = "Irbid", Role = UserRole.User },
-            new() { FullName = "Lina Khalil", Email = "lina@petcare.jo", PasswordHash = passwordService.HashPassword("Pass123!"), PhoneNumber = "0799001011", City = "Amman", Role = UserRole.User },
+            new() { FullName = "Alaa Haddad", Email = "alaa@petcare.jo", PasswordHash = passwordService.HashPassword("Pass123!"), PhoneNumber = "0799001001", City = "Amman", Role = UserRole.Admin },
+            new() { FullName = "Lina Khalil", Email = "lina@petcare.jo", PasswordHash = passwordService.HashPassword("Pass123!"), PhoneNumber = "0799001002", City = "Amman", Role = UserRole.User },
             new() { FullName = "Yousef Naser", Email = "yousef@petcare.jo", PasswordHash = passwordService.HashPassword("Pass123!"), PhoneNumber = "0799001003", City = "Irbid", Role = UserRole.User },
             new() { FullName = "Sara Odeh", Email = "sara@petcare.jo", PasswordHash = passwordService.HashPassword("Pass123!"), PhoneNumber = "0799001004", City = "Zarqa", Role = UserRole.User },
             new() { FullName = "Dr. Noor Hamdan", Email = "noor.vet@petcare.jo", PasswordHash = passwordService.HashPassword("Pass123!"), PhoneNumber = "0799001005", City = "Amman", Role = UserRole.Vet },
@@ -130,42 +127,6 @@ public static class SeedData
         await context.MedicalRecords.AddRangeAsync(medicalRecords);
         await context.VaccinationRecords.AddRangeAsync(vaccinations);
         await context.Notifications.AddRangeAsync(notifications);
-        await context.SaveChangesAsync();
-    }
-
-    private static async Task EnsureRequiredAccountsAsync(PetCareJordanContext context, PasswordService passwordService)
-    {
-        var requiredAccounts = new List<AppUser>
-        {
-            new()
-            {
-                FullName = "Safaa Quraan",
-                Email = "safaaquraan2004@gmail.com",
-                PasswordHash = passwordService.HashPassword("safaa1234"),
-                PhoneNumber = "0799001002",
-                City = "Irbid",
-                Role = UserRole.User
-            },
-            new()
-            {
-                FullName = "Yaqeen Alhammad",
-                Email = "yaqeenalhammad@gmail.com",
-                PasswordHash = passwordService.HashPassword("yaqeen1234"),
-                PhoneNumber = "0799001001",
-                City = "Amman",
-                Role = UserRole.Admin
-            }
-        };
-
-        foreach (var account in requiredAccounts)
-        {
-            var exists = await context.Users.AnyAsync(user => user.Email == account.Email);
-            if (!exists)
-            {
-                context.Users.Add(account);
-            }
-        }
-
         await context.SaveChangesAsync();
     }
 }

@@ -8,6 +8,5 @@ public record DashboardSummaryDto(
     int LostReports,
     int FoundReports,
     int UpcomingVaccines,
-    int PendingModeration,
     IDictionary<string, int> PetsByType,
     IDictionary<string, int> PetsByCity);

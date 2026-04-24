@@ -1,5 +1,3 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PetCareJordan.Api.Data;
@@ -17,7 +15,6 @@ public class AdoptionsController(PetCareJordanContext context) : ControllerBase
     {
         var listings = await context.AdoptionListings
             .Include(listing => listing.Pet)
-            .Where(listing => listing.ModerationStatus == ModerationStatus.Approved && listing.Pet != null && listing.Pet.ModerationStatus == ModerationStatus.Approved)
             .OrderByDescending(listing => listing.PostedAtUtc)
             .Select(listing => new AdoptionListingDto(
                 listing.Id,
@@ -31,32 +28,19 @@ public class AdoptionsController(PetCareJordanContext context) : ControllerBase
                 listing.ContactMethod,
                 listing.ContactDetails,
                 listing.Status,
-                listing.PostedAtUtc,
-                listing.ModerationStatus))
+                listing.PostedAtUtc))
             .ToListAsync();
 
         return Ok(listings);
     }
 
     [HttpPost]
-    [Authorize]
     public async Task<ActionResult<AdoptionListingDto>> CreateAdoptionListing(CreateAdoptionListingRequest request)
     {
-        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
-        {
-            return Unauthorized("Invalid user session.");
-        }
-
-        var pet = await context.Pets
-            .FirstOrDefaultAsync(item => item.Id == request.PetId);
+        var pet = await context.Pets.FindAsync(request.PetId);
         if (pet is null)
         {
             return BadRequest("Pet not found.");
-        }
-
-        if (pet.OwnerId != currentUserId)
-        {
-            return Forbid("Only the owner can publish adoption details for this pet.");
         }
 
         var listing = new AdoptionListing
@@ -66,13 +50,12 @@ public class AdoptionsController(PetCareJordanContext context) : ControllerBase
             ContactMethod = request.ContactMethod,
             ContactDetails = request.ContactDetails,
             Status = AdoptionStatus.Available,
-            PostedAtUtc = DateTime.UtcNow,
-            ModerationStatus = ModerationStatus.Pending
+            PostedAtUtc = DateTime.UtcNow
         };
 
         context.AdoptionListings.Add(listing);
         await context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetAdoptionListings), new AdoptionListingDto(listing.Id, pet.Id, pet.Name, pet.Type, pet.Breed, pet.PhotoUrl, pet.City, listing.Story, listing.ContactMethod, listing.ContactDetails, listing.Status, listing.PostedAtUtc, listing.ModerationStatus));
+        return CreatedAtAction(nameof(GetAdoptionListings), new AdoptionListingDto(listing.Id, pet.Id, pet.Name, pet.Type, pet.Breed, pet.PhotoUrl, pet.City, listing.Story, listing.ContactMethod, listing.ContactDetails, listing.Status, listing.PostedAtUtc));
     }
 }

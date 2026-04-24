@@ -10,5 +10,4 @@ public class AdoptionListing
     public string ContactDetails { get; set; } = string.Empty;
     public AdoptionStatus Status { get; set; }
     public DateTime PostedAtUtc { get; set; }
-    public ModerationStatus ModerationStatus { get; set; } = ModerationStatus.Approved;
 }
