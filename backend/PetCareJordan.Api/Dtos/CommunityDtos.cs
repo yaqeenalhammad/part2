@@ -30,7 +30,9 @@ public record LostPetReportDto(
     string PhotoUrl,
     string ContactName,
     string ContactPhone,
-    ReportStatus Status);
+    ReportStatus Status,
+    int? ReporterId,
+    string? ReporterName);
 
 public record CreateLostPetReportRequest(
     string PetName,
@@ -53,7 +55,9 @@ public record FoundPetReportDto(
     string PhotoUrl,
     string ContactName,
     string ContactPhone,
-    ReportStatus Status);
+    ReportStatus Status,
+    int? ReporterId,
+    string? ReporterName);
 
 public record CreateFoundPetReportRequest(
     PetType PetType,
@@ -63,6 +67,14 @@ public record CreateFoundPetReportRequest(
     string PhotoUrl,
     string ContactName,
     string ContactPhone);
+
+public record PendingCommunityReportsDto(
+    IEnumerable<LostPetReportDto> LostReports,
+    IEnumerable<FoundPetReportDto> FoundReports);
+
+public record MyCommunityReportsDto(
+    IEnumerable<LostPetReportDto> LostReports,
+    IEnumerable<FoundPetReportDto> FoundReports);
 
 public record NotificationDto(int Id, string Title, string Message, DateTime TriggerDateUtc, bool IsRead);
 

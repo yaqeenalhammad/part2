@@ -34,6 +34,18 @@ public class PetCareJordanContext(DbContextOptions<PetCareJordanContext> options
             .Property(report => report.RewardAmount)
             .HasPrecision(8, 2);
 
+        modelBuilder.Entity<LostPetReport>()
+            .HasOne(report => report.Reporter)
+            .WithMany()
+            .HasForeignKey(report => report.ReporterId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<FoundPetReport>()
+            .HasOne(report => report.Reporter)
+            .WithMany()
+            .HasForeignKey(report => report.ReporterId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<Pet>()
             .HasOne(pet => pet.Owner)
             .WithMany(owner => owner.OwnedPets)

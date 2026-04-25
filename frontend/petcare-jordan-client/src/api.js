@@ -16,6 +16,10 @@ async function request(path, options = {}) {
     throw new Error(message || `Request failed for ${path}`);
   }
 
+  if (response.status === 204) {
+    return null;
+  }
+
   return response.json();
 }
 
@@ -25,6 +29,44 @@ export const api = {
   getAdoptions: () => request("/adoptions"),
   getLostPets: () => request("/community/lost"),
   getFoundPets: () => request("/community/found"),
+  getPendingCommunityReports: (token) =>
+    request("/community/admin/pending", {
+      headers: buildHeaders({}, token)
+    }),
+  getMyCommunityReports: (token) =>
+    request("/community/my", {
+      headers: buildHeaders({}, token)
+    }),
+  approveLostPetReport: (id, token) =>
+    request(`/community/admin/lost/${id}/approve`, {
+      method: "PUT",
+      headers: buildHeaders({}, token)
+    }),
+  rejectLostPetReport: (id, token) =>
+    request(`/community/admin/lost/${id}/reject`, {
+      method: "PUT",
+      headers: buildHeaders({}, token)
+    }),
+  deleteLostPetReport: (id, token) =>
+    request(`/community/admin/lost/${id}`, {
+      method: "DELETE",
+      headers: buildHeaders({}, token)
+    }),
+  approveFoundPetReport: (id, token) =>
+    request(`/community/admin/found/${id}/approve`, {
+      method: "PUT",
+      headers: buildHeaders({}, token)
+    }),
+  rejectFoundPetReport: (id, token) =>
+    request(`/community/admin/found/${id}/reject`, {
+      method: "PUT",
+      headers: buildHeaders({}, token)
+    }),
+  deleteFoundPetReport: (id, token) =>
+    request(`/community/admin/found/${id}`, {
+      method: "DELETE",
+      headers: buildHeaders({}, token)
+    }),
   createLostPetReport: (payload, token) =>
     request("/community/lost", {
       method: "POST",

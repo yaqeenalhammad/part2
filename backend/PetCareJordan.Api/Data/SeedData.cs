@@ -8,7 +8,8 @@ public static class SeedData
 {
     public static async Task InitializeAsync(PetCareJordanContext context)
     {
-       await EnsureChatTablesAsync(context);
+        await EnsureCommunityReportReporterColumnsAsync(context);
+        await EnsureChatTablesAsync(context);
         var passwordService = new PasswordService();
 
         if (context.Users.Any())
@@ -196,6 +197,31 @@ public static class SeedData
         await context.Database.ExecuteSqlRawAsync(createConversations);
         await context.Database.ExecuteSqlRawAsync(createMessages);
         await context.Database.ExecuteSqlRawAsync(ensureMessageReadColumns);
+    }
+
+    private static async Task EnsureCommunityReportReporterColumnsAsync(PetCareJordanContext context)
+    {
+        const string sql = """
+            IF COL_LENGTH(N'[LostPetReports]', N'ReporterId') IS NULL
+            BEGIN
+                ALTER TABLE [LostPetReports] ADD [ReporterId] INT NULL;
+                CREATE INDEX [IX_LostPetReports_ReporterId] ON [LostPetReports] ([ReporterId]);
+                ALTER TABLE [LostPetReports]
+                ADD CONSTRAINT [FK_LostPetReports_Users_ReporterId]
+                FOREIGN KEY ([ReporterId]) REFERENCES [Users] ([Id]) ON DELETE SET NULL;
+            END
+
+            IF COL_LENGTH(N'[FoundPetReports]', N'ReporterId') IS NULL
+            BEGIN
+                ALTER TABLE [FoundPetReports] ADD [ReporterId] INT NULL;
+                CREATE INDEX [IX_FoundPetReports_ReporterId] ON [FoundPetReports] ([ReporterId]);
+                ALTER TABLE [FoundPetReports]
+                ADD CONSTRAINT [FK_FoundPetReports_Users_ReporterId]
+                FOREIGN KEY ([ReporterId]) REFERENCES [Users] ([Id]) ON DELETE SET NULL;
+            END
+            """;
+
+        await context.Database.ExecuteSqlRawAsync(sql);
     }
 
     private static async Task RemoveDemoChatArtifactsAsync(PetCareJordanContext context)

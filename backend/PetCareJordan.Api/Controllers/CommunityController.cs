@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -38,13 +39,15 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
                 report.PhotoUrl,
                 report.ContactName,
                 report.ContactPhone,
-                report.Status))
+                report.Status,
+                report.ReporterId,
+                report.Reporter != null ? report.Reporter.FullName : null))
             .ToListAsync();
 
         return Ok(reports);
     }
 
-    [Authorize(Roles = "User")]
+    [Authorize(Roles = "User,Vet")]
     [HttpPost("lost")]
     public async Task<ActionResult<LostPetReportDto>> CreateLostPetReport(CreateLostPetReportRequest request)
     {
@@ -60,13 +63,14 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
             PhotoUrl = request.PhotoUrl,
             ContactName = request.ContactName,
             ContactPhone = request.ContactPhone,
-            Status = ReportStatus.Pending
+            Status = ReportStatus.Pending,
+            ReporterId = GetCurrentUserId()
         };
 
         context.LostPetReports.Add(report);
         await context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetLostPets), new LostPetReportDto(report.Id, report.PetName, report.PetType, report.Description, report.ApproximateAgeInMonths, report.LastSeenPlace, report.LastSeenDateUtc, report.RewardAmount, report.PhotoUrl, report.ContactName, report.ContactPhone, report.Status));
+        return CreatedAtAction(nameof(GetLostPets), ToLostDto(report));
     }
 
     [HttpGet("found")]
@@ -84,13 +88,15 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
                 report.PhotoUrl,
                 report.ContactName,
                 report.ContactPhone,
-                report.Status))
+                report.Status,
+                report.ReporterId,
+                report.Reporter != null ? report.Reporter.FullName : null))
             .ToListAsync();
 
         return Ok(reports);
     }
 
-    [Authorize(Roles = "User")]
+    [Authorize(Roles = "User,Vet")]
     [HttpPost("found")]
     public async Task<ActionResult<FoundPetReportDto>> CreateFoundPetReport(CreateFoundPetReportRequest request)
     {
@@ -103,16 +109,207 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
             PhotoUrl = request.PhotoUrl,
             ContactName = request.ContactName,
             ContactPhone = request.ContactPhone,
-            Status = ReportStatus.Pending
+            Status = ReportStatus.Pending,
+            ReporterId = GetCurrentUserId()
         };
 
         context.FoundPetReports.Add(report);
         await context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetFoundPets), new FoundPetReportDto(report.Id, report.PetType, report.Description, report.FoundPlace, report.FoundDateUtc, report.PhotoUrl, report.ContactName, report.ContactPhone, report.Status));
+        return CreatedAtAction(nameof(GetFoundPets), ToFoundDto(report));
     }
 
-    [Authorize(Roles = "User")]
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin/pending")]
+    public async Task<ActionResult<PendingCommunityReportsDto>> GetPendingReports()
+    {
+        var lostReports = await context.LostPetReports
+            .Where(report => report.Status == ReportStatus.Pending)
+            .OrderByDescending(report => report.LastSeenDateUtc)
+            .Select(report => new LostPetReportDto(
+                report.Id,
+                report.PetName,
+                report.PetType,
+                report.Description,
+                report.ApproximateAgeInMonths,
+                report.LastSeenPlace,
+                report.LastSeenDateUtc,
+                report.RewardAmount,
+                report.PhotoUrl,
+                report.ContactName,
+                report.ContactPhone,
+                report.Status,
+                report.ReporterId,
+                report.Reporter != null ? report.Reporter.FullName : null))
+            .ToListAsync();
+
+        var foundReports = await context.FoundPetReports
+            .Where(report => report.Status == ReportStatus.Pending)
+            .OrderByDescending(report => report.FoundDateUtc)
+            .Select(report => new FoundPetReportDto(
+                report.Id,
+                report.PetType,
+                report.Description,
+                report.FoundPlace,
+                report.FoundDateUtc,
+                report.PhotoUrl,
+                report.ContactName,
+                report.ContactPhone,
+                report.Status,
+                report.ReporterId,
+                report.Reporter != null ? report.Reporter.FullName : null))
+            .ToListAsync();
+
+        return Ok(new PendingCommunityReportsDto(lostReports, foundReports));
+    }
+
+    [Authorize(Roles = "User,Vet")]
+    [HttpGet("my")]
+    public async Task<ActionResult<MyCommunityReportsDto>> GetMyReports()
+    {
+        var userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var lostReports = await context.LostPetReports
+            .Where(report => report.ReporterId == userId)
+            .OrderByDescending(report => report.LastSeenDateUtc)
+            .Select(report => new LostPetReportDto(
+                report.Id,
+                report.PetName,
+                report.PetType,
+                report.Description,
+                report.ApproximateAgeInMonths,
+                report.LastSeenPlace,
+                report.LastSeenDateUtc,
+                report.RewardAmount,
+                report.PhotoUrl,
+                report.ContactName,
+                report.ContactPhone,
+                report.Status,
+                report.ReporterId,
+                report.Reporter != null ? report.Reporter.FullName : null))
+            .ToListAsync();
+
+        var foundReports = await context.FoundPetReports
+            .Where(report => report.ReporterId == userId)
+            .OrderByDescending(report => report.FoundDateUtc)
+            .Select(report => new FoundPetReportDto(
+                report.Id,
+                report.PetType,
+                report.Description,
+                report.FoundPlace,
+                report.FoundDateUtc,
+                report.PhotoUrl,
+                report.ContactName,
+                report.ContactPhone,
+                report.Status,
+                report.ReporterId,
+                report.Reporter != null ? report.Reporter.FullName : null))
+            .ToListAsync();
+
+        return Ok(new MyCommunityReportsDto(lostReports, foundReports));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("admin/lost/{id:int}/approve")]
+    public async Task<ActionResult<LostPetReportDto>> ApproveLostPetReport(int id)
+    {
+        var report = await context.LostPetReports.FindAsync(id);
+        if (report is null)
+        {
+            return NotFound();
+        }
+
+        report.Status = ReportStatus.Active;
+        await context.SaveChangesAsync();
+
+        return Ok(ToLostDto(report));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("admin/lost/{id:int}/reject")]
+    public async Task<ActionResult<LostPetReportDto>> RejectLostPetReport(int id)
+    {
+        var report = await context.LostPetReports.FindAsync(id);
+        if (report is null)
+        {
+            return NotFound();
+        }
+
+        report.Status = ReportStatus.Rejected;
+        await context.SaveChangesAsync();
+
+        return Ok(ToLostDto(report));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("admin/lost/{id:int}")]
+    public async Task<IActionResult> DeleteLostPetReport(int id)
+    {
+        var report = await context.LostPetReports.FindAsync(id);
+        if (report is null)
+        {
+            return NotFound();
+        }
+
+        context.LostPetReports.Remove(report);
+        await context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("admin/found/{id:int}/approve")]
+    public async Task<ActionResult<FoundPetReportDto>> ApproveFoundPetReport(int id)
+    {
+        var report = await context.FoundPetReports.FindAsync(id);
+        if (report is null)
+        {
+            return NotFound();
+        }
+
+        report.Status = ReportStatus.Active;
+        await context.SaveChangesAsync();
+
+        return Ok(ToFoundDto(report));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("admin/found/{id:int}/reject")]
+    public async Task<ActionResult<FoundPetReportDto>> RejectFoundPetReport(int id)
+    {
+        var report = await context.FoundPetReports.FindAsync(id);
+        if (report is null)
+        {
+            return NotFound();
+        }
+
+        report.Status = ReportStatus.Rejected;
+        await context.SaveChangesAsync();
+
+        return Ok(ToFoundDto(report));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("admin/found/{id:int}")]
+    public async Task<IActionResult> DeleteFoundPetReport(int id)
+    {
+        var report = await context.FoundPetReports.FindAsync(id);
+        if (report is null)
+        {
+            return NotFound();
+        }
+
+        context.FoundPetReports.Remove(report);
+        await context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [Authorize(Roles = "User,Vet")]
     [HttpPost("upload-image")]
     public async Task<ActionResult<UploadedImageDto>> UploadImage([FromForm] IFormFile file)
     {
@@ -157,5 +354,42 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
             .ToListAsync();
 
         return Ok(notifications);
+    }
+
+    private static LostPetReportDto ToLostDto(LostPetReport report) =>
+        new(
+            report.Id,
+            report.PetName,
+            report.PetType,
+            report.Description,
+            report.ApproximateAgeInMonths,
+            report.LastSeenPlace,
+            report.LastSeenDateUtc,
+            report.RewardAmount,
+            report.PhotoUrl,
+            report.ContactName,
+            report.ContactPhone,
+            report.Status,
+            report.ReporterId,
+            report.Reporter?.FullName);
+
+    private static FoundPetReportDto ToFoundDto(FoundPetReport report) =>
+        new(
+            report.Id,
+            report.PetType,
+            report.Description,
+            report.FoundPlace,
+            report.FoundDateUtc,
+            report.PhotoUrl,
+            report.ContactName,
+            report.ContactPhone,
+            report.Status,
+            report.ReporterId,
+            report.Reporter?.FullName);
+
+    private int? GetCurrentUserId()
+    {
+        var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(claimValue, out var userId) ? userId : null;
     }
 }

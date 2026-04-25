@@ -11,4 +11,6 @@ public class FoundPetReport
     public string ContactName { get; set; } = string.Empty;
     public string ContactPhone { get; set; } = string.Empty;
     public ReportStatus Status { get; set; }
+    public int? ReporterId { get; set; }
+    public AppUser? Reporter { get; set; }
 }

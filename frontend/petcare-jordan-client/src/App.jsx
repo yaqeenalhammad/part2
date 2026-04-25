@@ -8,6 +8,7 @@ const tabs = [
   { id: "chat", label: "Chat" },
   { id: "medical", label: "Medical" }
 ];
+const adminHiddenTabs = new Set(["adoption", "chat", "medical"]);
 
 const roleOrder = ["User", "Vet", "Admin"];
 const roleConfig = {
@@ -300,6 +301,10 @@ function App() {
   const [adoptions, setAdoptions] = useState([]);
   const [lostPets, setLostPets] = useState([]);
   const [foundPets, setFoundPets] = useState([]);
+  const [pendingLostPets, setPendingLostPets] = useState([]);
+  const [pendingFoundPets, setPendingFoundPets] = useState([]);
+  const [myLostPets, setMyLostPets] = useState([]);
+  const [myFoundPets, setMyFoundPets] = useState([]);
   const [vaccines, setVaccines] = useState([]);
   const [userMedicalPets, setUserMedicalPets] = useState([]);
   const [chatVets, setChatVets] = useState([]);
@@ -373,6 +378,10 @@ function App() {
       setAdoptions([]);
       setLostPets([]);
       setFoundPets([]);
+      setPendingLostPets([]);
+      setPendingFoundPets([]);
+      setMyLostPets([]);
+      setMyFoundPets([]);
       setVaccines([]);
       setUserMedicalPets([]);
       setChatVets([]);
@@ -389,22 +398,38 @@ function App() {
     async function loadPrivateData() {
       try {
         setPrivateLoading(true);
+        const isAdmin = currentUser.role === "Admin";
         const medicalRequest =
-          currentUser.role === "User"
+          isAdmin
+            ? Promise.resolve([])
+            : currentUser.role === "User"
             ? api.getMyMedicalPets(currentUser.token)
             : api.getUpcomingVaccines(currentUser.token);
-        const chatConversationsRequest = api.getMyChatConversations(currentUser.token);
-        const chatVetsRequest = currentUser.role === "User"
+        const chatConversationsRequest = isAdmin
+          ? Promise.resolve([])
+          : api.getMyChatConversations(currentUser.token);
+        const chatVetsRequest = currentUser.role === "User" && !isAdmin
           ? api.getChatVets(currentUser.token)
           : Promise.resolve([]);
+        const adoptionRequest = isAdmin
+          ? Promise.resolve([])
+          : api.getAdoptions();
+        const pendingCommunityRequest = isAdmin
+          ? api.getPendingCommunityReports(currentUser.token)
+          : Promise.resolve({ lostReports: [], foundReports: [] });
+        const myCommunityRequest = !isAdmin && (currentUser.role === "User" || currentUser.role === "Vet")
+          ? api.getMyCommunityReports(currentUser.token)
+          : Promise.resolve({ lostReports: [], foundReports: [] });
 
-        const [adoptionData, lostData, foundData, medicalData, conversationData, vetsData] = await Promise.all([
-          api.getAdoptions(),
+        const [adoptionData, lostData, foundData, medicalData, conversationData, vetsData, pendingCommunityData, myCommunityData] = await Promise.all([
+          adoptionRequest,
           api.getLostPets(),
           api.getFoundPets(),
           medicalRequest,
           chatConversationsRequest,
-          chatVetsRequest
+          chatVetsRequest,
+          pendingCommunityRequest,
+          myCommunityRequest
         ]);
 
         if (isCancelled) {
@@ -414,9 +439,17 @@ function App() {
         setAdoptions(adoptionData);
         setLostPets(lostData);
         setFoundPets(foundData);
+        setPendingLostPets(pendingCommunityData.lostReports ?? []);
+        setPendingFoundPets(pendingCommunityData.foundReports ?? []);
+        setMyLostPets(myCommunityData.lostReports ?? []);
+        setMyFoundPets(myCommunityData.foundReports ?? []);
         setChatConversations(conversationData);
         setChatVets(vetsData);
         setSelectedConversationId((current) => {
+          if (isAdmin) {
+            return null;
+          }
+
           if (!current && conversationData.length > 0) {
             return conversationData[0].id;
           }
@@ -427,7 +460,10 @@ function App() {
 
           return current;
         });
-        if (currentUser.role === "User") {
+        if (isAdmin) {
+          setVaccines([]);
+          setUserMedicalPets([]);
+        } else if (currentUser.role === "User") {
           setUserMedicalPets(medicalData);
           setVaccines([]);
         } else {
@@ -565,12 +601,19 @@ function App() {
     (vet) => !chatConversations.some((conversation) => conversation.vetId === vet.id)
   );
   const isChatRole = currentUser?.role === "User" || currentUser?.role === "Vet";
+  const canPublishCommunityPost = currentUser?.role === "User" || currentUser?.role === "Vet";
+  const communityLostPets = canPublishCommunityPost
+    ? lostPets.filter((item) => item.reporterId !== currentUser.id)
+    : lostPets;
+  const communityFoundPets = canPublishCommunityPost
+    ? foundPets.filter((item) => item.reporterId !== currentUser.id)
+    : foundPets;
   const chatUnreadCount = chatConversations.reduce(
     (total, conversation) => total + (conversation.unreadIncomingCount ?? 0),
     0
   );
   const visibleTabs = currentUser?.role === "Admin"
-    ? tabs.filter((tab) => tab.id !== "chat")
+    ? tabs.filter((tab) => !adminHiddenTabs.has(tab.id))
     : tabs;
 
   useEffect(() => {
@@ -623,8 +666,8 @@ function App() {
       return;
     }
 
-    if (currentUser.role !== "User") {
-      setError("Only User accounts can publish lost or found posts.");
+    if (!canPublishCommunityPost) {
+      setError("Only User and Vet accounts can publish lost or found posts.");
       return;
     }
 
@@ -635,8 +678,9 @@ function App() {
         lastSeenDateUtc: new Date(lostPostForm.lastSeenDateUtc).toISOString(),
         rewardAmount: lostPostForm.rewardAmount ? Number(lostPostForm.rewardAmount) : null
       };
-      await api.createLostPetReport(payload, currentUser.token);
+      const createdReport = await api.createLostPetReport(payload, currentUser.token);
 
+      setMyLostPets((current) => [createdReport, ...current]);
       setLostPostForm(createInitialLostPostForm(currentUser));
       setLostFoundNotice("Lost pet post sent successfully. It will appear after admin approval.");
       setError("");
@@ -653,8 +697,8 @@ function App() {
       return;
     }
 
-    if (currentUser.role !== "User") {
-      setError("Only User accounts can publish lost or found posts.");
+    if (!canPublishCommunityPost) {
+      setError("Only User and Vet accounts can publish lost or found posts.");
       return;
     }
 
@@ -663,8 +707,9 @@ function App() {
         ...foundPostForm,
         foundDateUtc: new Date(foundPostForm.foundDateUtc).toISOString()
       };
-      await api.createFoundPetReport(payload, currentUser.token);
+      const createdReport = await api.createFoundPetReport(payload, currentUser.token);
 
+      setMyFoundPets((current) => [createdReport, ...current]);
       setFoundPostForm(createInitialFoundPostForm(currentUser));
       setLostFoundNotice("Found pet post sent successfully. It will appear after admin approval.");
       setError("");
@@ -693,6 +738,63 @@ function App() {
       setError(uploadError.message || "Could not upload this image.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleReviewCommunityReport(kind, id, decision) {
+    if (!currentUser?.token || currentUser.role !== "Admin") {
+      setError("Only Admin accounts can review lost and found posts.");
+      return;
+    }
+
+    try {
+      if (kind === "lost") {
+        if (decision === "approve") {
+          await api.approveLostPetReport(id, currentUser.token);
+        } else {
+          await api.rejectLostPetReport(id, currentUser.token);
+        }
+        setPendingLostPets((current) => current.filter((item) => item.id !== id));
+      } else {
+        if (decision === "approve") {
+          await api.approveFoundPetReport(id, currentUser.token);
+        } else {
+          await api.rejectFoundPetReport(id, currentUser.token);
+        }
+        setPendingFoundPets((current) => current.filter((item) => item.id !== id));
+      }
+
+      const publicReports = await Promise.all([api.getLostPets(), api.getFoundPets()]);
+      setLostPets(publicReports[0]);
+      setFoundPets(publicReports[1]);
+      setLostFoundNotice(decision === "approve" ? "Post approved and published." : "Post rejected.");
+      setError("");
+    } catch (reviewError) {
+      setError(reviewError.message || "Could not update this post.");
+    }
+  }
+
+  async function handleDeleteCommunityReport(kind, id) {
+    if (!currentUser?.token || currentUser.role !== "Admin") {
+      setError("Only Admin accounts can delete lost and found posts.");
+      return;
+    }
+
+    try {
+      if (kind === "lost") {
+        await api.deleteLostPetReport(id, currentUser.token);
+        setLostPets((current) => current.filter((item) => item.id !== id));
+        setPendingLostPets((current) => current.filter((item) => item.id !== id));
+      } else {
+        await api.deleteFoundPetReport(id, currentUser.token);
+        setFoundPets((current) => current.filter((item) => item.id !== id));
+        setPendingFoundPets((current) => current.filter((item) => item.id !== id));
+      }
+
+      setLostFoundNotice("Post deleted.");
+      setError("");
+    } catch (deleteError) {
+      setError(deleteError.message || "Could not delete this post.");
     }
   }
 
@@ -941,49 +1043,225 @@ function App() {
 
             {activeTab === "lostfound" && currentUser && !privateLoading ? (
               <div className="content-grid">
-                <div className="content-grid two-column">
-                  <SectionCard title="Lost Pets" subtitle="Community notices for missing pets.">
-                    <div className="list-stack">
-                      {lostPets.map((item) => (
-                        <article key={item.id} className="list-card">
-                          <strong>{item.petName}</strong>
-                          <p>{item.description}</p>
-                          <div className="meta-line">
-                            <span>{item.lastSeenPlace}</span>
-                            <span>{new Date(item.lastSeenDateUtc).toLocaleDateString()}</span>
-                          </div>
-                          <div className="meta-line">
-                            <span>Reward: {item.rewardAmount ? `${item.rewardAmount} JOD` : "No reward listed"}</span>
-                            <span>{item.contactPhone}</span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </SectionCard>
+                {currentUser.role === "Admin" ? (
+                  <>
+                    <SectionCard title="Pending Lost Pet Posts" subtitle="Approve posts to publish them, or reject posts that should stay hidden.">
+                      <div className="list-stack">
+                        {pendingLostPets.length > 0 ? (
+                          pendingLostPets.map((item) => (
+                            <article key={item.id} className="list-card">
+                              <strong>{item.petName}</strong>
+                              <p>{item.description}</p>
+                              <div className="meta-line">
+                                <span>{item.petType}</span>
+                                <span>{item.lastSeenPlace}</span>
+                                <span>{new Date(item.lastSeenDateUtc).toLocaleDateString()}</span>
+                              </div>
+                              <div className="meta-line">
+                                <span>Contact: {item.contactName}</span>
+                                <span>{item.contactPhone}</span>
+                              </div>
+                              <div className="form-grid-two">
+                                <button type="button" className="admin-action-button" onClick={() => handleReviewCommunityReport("lost", item.id, "approve")}>
+                                  Approve
+                                </button>
+                                <button type="button" className="admin-action-button" onClick={() => handleReviewCommunityReport("lost", item.id, "reject")}>
+                                  Reject
+                                </button>
+                              </div>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty-state">No pending lost pet posts.</p>
+                        )}
+                      </div>
+                    </SectionCard>
 
-                  <SectionCard title="Found Pets" subtitle="Reports for pets that have been found and are waiting to be matched.">
-                    <div className="list-stack">
-                      {foundPets.map((item) => (
-                        <article key={item.id} className="list-card">
-                          <strong>{item.petType}</strong>
-                          <p>{item.description}</p>
-                          <div className="meta-line">
-                            <span>{item.foundPlace}</span>
-                            <span>{new Date(item.foundDateUtc).toLocaleDateString()}</span>
-                          </div>
-                          <div className="meta-line">
-                            <span>Contact: {item.contactName}</span>
-                            <span>{item.contactPhone}</span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </SectionCard>
-                </div>
+                    <SectionCard title="Pending Found Pet Posts" subtitle="Found pet reports also stay hidden until admin approval.">
+                      <div className="list-stack">
+                        {pendingFoundPets.length > 0 ? (
+                          pendingFoundPets.map((item) => (
+                            <article key={item.id} className="list-card">
+                              <strong>{item.petType}</strong>
+                              <p>{item.description}</p>
+                              <div className="meta-line">
+                                <span>{item.foundPlace}</span>
+                                <span>{new Date(item.foundDateUtc).toLocaleDateString()}</span>
+                              </div>
+                              <div className="meta-line">
+                                <span>Contact: {item.contactName}</span>
+                                <span>{item.contactPhone}</span>
+                              </div>
+                              <div className="form-grid-two">
+                                <button type="button" className="admin-action-button" onClick={() => handleReviewCommunityReport("found", item.id, "approve")}>
+                                  Approve
+                                </button>
+                                <button type="button" className="admin-action-button" onClick={() => handleReviewCommunityReport("found", item.id, "reject")}>
+                                  Reject
+                                </button>
+                              </div>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty-state">No pending found pet posts.</p>
+                        )}
+                      </div>
+                    </SectionCard>
 
-                <SectionCard title="Publish Lost / Found Report" subtitle="Your post is saved as Pending and appears publicly only after admin approval.">
-                  {currentUser.role === "User" ? (
-                    <div className="post-forms">
+                    <SectionCard title="Published Lost Pet Posts" subtitle="Already approved posts visible to User and Vet accounts.">
+                      <div className="list-stack">
+                        {lostPets.length > 0 ? (
+                          lostPets.map((item) => (
+                            <article key={item.id} className="list-card">
+                              <strong>{item.petName}</strong>
+                              <p>{item.description}</p>
+                              <div className="meta-line">
+                                <span>{item.petType}</span>
+                                <span>{item.lastSeenPlace}</span>
+                                <span>{new Date(item.lastSeenDateUtc).toLocaleDateString()}</span>
+                              </div>
+                              <div className="meta-line">
+                                <span>Contact: {item.contactName}</span>
+                                <span>{item.contactPhone}</span>
+                              </div>
+                              <button type="button" className="admin-action-button" onClick={() => handleDeleteCommunityReport("lost", item.id)}>
+                                Delete
+                              </button>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty-state">No published lost pet posts.</p>
+                        )}
+                      </div>
+                    </SectionCard>
+
+                    <SectionCard title="Published Found Pet Posts" subtitle="Remove found pet posts that should no longer appear publicly.">
+                      <div className="list-stack">
+                        {foundPets.length > 0 ? (
+                          foundPets.map((item) => (
+                            <article key={item.id} className="list-card">
+                              <strong>{item.petType}</strong>
+                              <p>{item.description}</p>
+                              <div className="meta-line">
+                                <span>{item.foundPlace}</span>
+                                <span>{new Date(item.foundDateUtc).toLocaleDateString()}</span>
+                              </div>
+                              <div className="meta-line">
+                                <span>Contact: {item.contactName}</span>
+                                <span>{item.contactPhone}</span>
+                              </div>
+                              <button type="button" className="admin-action-button" onClick={() => handleDeleteCommunityReport("found", item.id)}>
+                                Delete
+                              </button>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty-state">No published found pet posts.</p>
+                        )}
+                      </div>
+                    </SectionCard>
+                  </>
+                ) : (
+                  <>
+                    <SectionCard title="My Posts" subtitle="Your lost and found reports stay here, separate from other people's posts.">
+                      <div className="content-grid two-column">
+                        <div className="list-stack">
+                          <strong>My Lost Reports</strong>
+                          {myLostPets.length > 0 ? (
+                            myLostPets.map((item) => (
+                              <article key={item.id} className="list-card">
+                                <strong>{item.petName}</strong>
+                                <p>{item.description}</p>
+                                <div className="meta-line">
+                                  <span>{item.lastSeenPlace}</span>
+                                  <span>{new Date(item.lastSeenDateUtc).toLocaleDateString()}</span>
+                                </div>
+                                <div className="meta-line">
+                                  <span className="pill warning">{item.status}</span>
+                                  <span>Reward: {item.rewardAmount ? `${item.rewardAmount} JOD` : "No reward listed"}</span>
+                                </div>
+                              </article>
+                            ))
+                          ) : (
+                            <p className="empty-state">You have not submitted lost pet reports yet.</p>
+                          )}
+                        </div>
+
+                        <div className="list-stack">
+                          <strong>My Found Reports</strong>
+                          {myFoundPets.length > 0 ? (
+                            myFoundPets.map((item) => (
+                              <article key={item.id} className="list-card">
+                                <strong>{item.petType}</strong>
+                                <p>{item.description}</p>
+                                <div className="meta-line">
+                                  <span>{item.foundPlace}</span>
+                                  <span>{new Date(item.foundDateUtc).toLocaleDateString()}</span>
+                                </div>
+                                <div className="meta-line">
+                                  <span className="pill warning">{item.status}</span>
+                                  <span>{item.contactPhone}</span>
+                                </div>
+                              </article>
+                            ))
+                          ) : (
+                            <p className="empty-state">You have not submitted found pet reports yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </SectionCard>
+
+                    <div className="content-grid two-column">
+                      <SectionCard title="Community Lost Pets" subtitle="Approved missing-pet posts from other accounts.">
+                        <div className="list-stack">
+                          {communityLostPets.length > 0 ? (
+                            communityLostPets.map((item) => (
+                              <article key={item.id} className="list-card">
+                                <strong>{item.petName}</strong>
+                                <p>{item.description}</p>
+                                <div className="meta-line">
+                                  <span>{item.lastSeenPlace}</span>
+                                  <span>{new Date(item.lastSeenDateUtc).toLocaleDateString()}</span>
+                                </div>
+                                <div className="meta-line">
+                                  <span>Reward: {item.rewardAmount ? `${item.rewardAmount} JOD` : "No reward listed"}</span>
+                                  <span>{item.contactPhone}</span>
+                                </div>
+                              </article>
+                            ))
+                          ) : (
+                            <p className="empty-state">No approved lost pet posts from other accounts.</p>
+                          )}
+                        </div>
+                      </SectionCard>
+
+                      <SectionCard title="Community Found Pets" subtitle="Approved found-pet posts from other accounts.">
+                        <div className="list-stack">
+                          {communityFoundPets.length > 0 ? (
+                            communityFoundPets.map((item) => (
+                              <article key={item.id} className="list-card">
+                                <strong>{item.petType}</strong>
+                                <p>{item.description}</p>
+                                <div className="meta-line">
+                                  <span>{item.foundPlace}</span>
+                                  <span>{new Date(item.foundDateUtc).toLocaleDateString()}</span>
+                                </div>
+                                <div className="meta-line">
+                                  <span>Contact: {item.contactName}</span>
+                                  <span>{item.contactPhone}</span>
+                                </div>
+                              </article>
+                            ))
+                          ) : (
+                            <p className="empty-state">No approved found pet posts from other accounts.</p>
+                          )}
+                        </div>
+                      </SectionCard>
+                    </div>
+
+                    <SectionCard title="Publish Lost / Found Report" subtitle="Your post is saved as Pending and appears publicly only after admin approval.">
+                      {canPublishCommunityPost ? (
+                        <div className="post-forms">
                       <form className="post-form" onSubmit={handleCreateLostReport}>
                         <h4>Report Lost Pet</h4>
                         <div className="form-grid-two">
@@ -1150,13 +1428,15 @@ function App() {
                         </div>
                         <button type="submit">Submit Found Report</button>
                       </form>
-                    </div>
-                  ) : (
-                    <p className="empty-state">Only User accounts can publish lost or found reports.</p>
-                  )}
+                        </div>
+                      ) : (
+                        <p className="empty-state">Only User and Vet accounts can publish lost or found reports.</p>
+                      )}
+                    </SectionCard>
+                  </>
+                )}
 
-                  {lostFoundNotice ? <p className="form-success">{lostFoundNotice}</p> : null}
-                </SectionCard>
+                {lostFoundNotice ? <p className="form-success">{lostFoundNotice}</p> : null}
               </div>
             ) : null}
 
