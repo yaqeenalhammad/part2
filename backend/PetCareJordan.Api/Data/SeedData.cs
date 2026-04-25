@@ -139,6 +139,34 @@ public static class SeedData
 
     private static async Task EnsureChatTablesAsync(PetCareJordanContext context)
     {
+        const string removeMalformedChatTables = """
+            IF OBJECT_ID(N'[ChatMessages]', N'U') IS NOT NULL
+               AND (
+                    COL_LENGTH(N'[ChatMessages]', N'ConversationId') IS NULL
+                    OR COL_LENGTH(N'[ChatMessages]', N'SenderId') IS NULL
+                    OR COL_LENGTH(N'[ChatMessages]', N'Message') IS NULL
+                    OR COL_LENGTH(N'[ChatMessages]', N'SentAtUtc') IS NULL
+               )
+            BEGIN
+                DROP TABLE [ChatMessages];
+            END
+
+            IF OBJECT_ID(N'[ChatConversations]', N'U') IS NOT NULL
+               AND (
+                    COL_LENGTH(N'[ChatConversations]', N'UserId') IS NULL
+                    OR COL_LENGTH(N'[ChatConversations]', N'VetId') IS NULL
+                    OR COL_LENGTH(N'[ChatConversations]', N'CreatedAtUtc') IS NULL
+               )
+            BEGIN
+                IF OBJECT_ID(N'[ChatMessages]', N'U') IS NOT NULL
+                BEGIN
+                    DROP TABLE [ChatMessages];
+                END
+
+                DROP TABLE [ChatConversations];
+            END
+            """;
+
         const string createConversations = """
             IF OBJECT_ID(N'[ChatConversations]', N'U') IS NULL
             BEGIN
@@ -198,6 +226,7 @@ public static class SeedData
             END
             """;
 
+        await context.Database.ExecuteSqlRawAsync(removeMalformedChatTables);
         await context.Database.ExecuteSqlRawAsync(createConversations);
         await context.Database.ExecuteSqlRawAsync(createMessages);
         await context.Database.ExecuteSqlRawAsync(ensureMessageReadByRecipientColumn);
