@@ -15,6 +15,7 @@ public static class SeedData
         if (context.Users.Any())
         {
             await NormalizeExistingUserEmailsAsync(context);
+            await NormalizeExistingEnglishTextAsync(context);
             await EnsureRequiredDemoAccountsAsync(context, passwordService);
             await RemoveDemoChatArtifactsAsync(context);
             return;
@@ -134,6 +135,7 @@ public static class SeedData
         await context.VaccinationRecords.AddRangeAsync(vaccinations);
         await context.Notifications.AddRangeAsync(notifications);
         await context.SaveChangesAsync();
+        await NormalizeExistingEnglishTextAsync(context);
         await RemoveDemoChatArtifactsAsync(context);
     }
 
@@ -281,6 +283,121 @@ public static class SeedData
 
         context.ChatMessages.RemoveRange(messagesToDelete);
         await context.SaveChangesAsync();
+    }
+
+    private static async Task NormalizeExistingEnglishTextAsync(PetCareJordanContext context)
+    {
+        var hasChanges = false;
+
+        var users = await context.Users.ToListAsync();
+        foreach (var user in users)
+        {
+            hasChanges |= NormalizeTextProperty(value => user.FullName = value, user.FullName);
+            hasChanges |= NormalizeTextProperty(value => user.City = value, user.City);
+        }
+
+        var pets = await context.Pets.ToListAsync();
+        foreach (var pet in pets)
+        {
+            hasChanges |= NormalizeTextProperty(value => pet.Name = value, pet.Name);
+            hasChanges |= NormalizeTextProperty(value => pet.Breed = value, pet.Breed);
+            hasChanges |= NormalizeTextProperty(value => pet.Color = value, pet.Color);
+            hasChanges |= NormalizeTextProperty(value => pet.City = value, pet.City);
+            hasChanges |= NormalizeTextProperty(value => pet.Description = value, pet.Description);
+        }
+
+        var adoptions = await context.AdoptionListings.ToListAsync();
+        foreach (var adoption in adoptions)
+        {
+            hasChanges |= NormalizeTextProperty(value => adoption.Story = value, adoption.Story);
+            hasChanges |= NormalizeTextProperty(value => adoption.ContactMethod = value, adoption.ContactMethod);
+        }
+
+        var lostReports = await context.LostPetReports.ToListAsync();
+        foreach (var report in lostReports)
+        {
+            hasChanges |= NormalizeTextProperty(value => report.PetName = value, report.PetName);
+            hasChanges |= NormalizeTextProperty(value => report.Description = value, report.Description);
+            hasChanges |= NormalizeTextProperty(value => report.LastSeenPlace = value, report.LastSeenPlace);
+            hasChanges |= NormalizeTextProperty(value => report.ContactName = value, report.ContactName);
+        }
+
+        var foundReports = await context.FoundPetReports.ToListAsync();
+        foreach (var report in foundReports)
+        {
+            hasChanges |= NormalizeTextProperty(value => report.Description = value, report.Description);
+            hasChanges |= NormalizeTextProperty(value => report.FoundPlace = value, report.FoundPlace);
+            hasChanges |= NormalizeTextProperty(value => report.ContactName = value, report.ContactName);
+        }
+
+        var medicalRecords = await context.MedicalRecords.ToListAsync();
+        foreach (var record in medicalRecords)
+        {
+            hasChanges |= NormalizeTextProperty(value => record.VisitReason = value, record.VisitReason);
+            hasChanges |= NormalizeTextProperty(value => record.Diagnosis = value, record.Diagnosis);
+            hasChanges |= NormalizeTextProperty(value => record.Treatment = value, record.Treatment);
+        }
+
+        var vaccinations = await context.VaccinationRecords.ToListAsync();
+        foreach (var vaccination in vaccinations)
+        {
+            hasChanges |= NormalizeTextProperty(value => vaccination.VaccineName = value, vaccination.VaccineName);
+        }
+
+        var notifications = await context.Notifications.ToListAsync();
+        foreach (var notification in notifications)
+        {
+            hasChanges |= NormalizeTextProperty(value => notification.Title = value, notification.Title);
+            hasChanges |= NormalizeTextProperty(value => notification.Message = value, notification.Message);
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static bool NormalizeTextProperty(Action<string> setValue, string currentValue)
+    {
+        var normalized = ToEnglishOnly(currentValue);
+        if (normalized == currentValue)
+        {
+            return false;
+        }
+
+        setValue(normalized);
+        return true;
+    }
+
+    private static string ToEnglishOnly(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        var pipeIndex = value.LastIndexOf('|');
+        if (pipeIndex >= 0 && pipeIndex < value.Length - 1)
+        {
+            return value[(pipeIndex + 1)..].Trim();
+        }
+
+        return value.Trim() switch
+        {
+            "عمان" => "Amman",
+            "العقبة" => "Aqaba",
+            "إربد" => "Irbid",
+            "اربد" => "Irbid",
+            "الزرقاء" => "Zarqa",
+            "المفرق" => "Mafraq",
+            "مأدبا" => "Madaba",
+            "مادبا" => "Madaba",
+            "السلط" => "Salt",
+            "جرش" => "Jerash",
+            "الكرك" => "Karak",
+            "تذكير تطعيم" => "Vaccine Reminder",
+            _ => value
+        };
     }
 
     private static async Task NormalizeExistingUserEmailsAsync(PetCareJordanContext context)
