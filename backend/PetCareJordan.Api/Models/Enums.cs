@@ -26,7 +26,8 @@ public enum AdoptionStatus
 {
     Available = 1,
     Pending = 2,
-    Adopted = 3
+    Adopted = 3,
+    Rejected = 4
 }
 
 public enum ReportStatus

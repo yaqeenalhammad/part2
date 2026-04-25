@@ -16,8 +16,14 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
     {
         ".jpg",
         ".jpeg",
+        ".jfif",
         ".png",
-        ".webp"
+        ".webp",
+        ".gif",
+        ".bmp",
+        ".avif",
+        ".heic",
+        ".heif"
     };
     private const long MaxImageSizeBytes = 5 * 1024 * 1024;
 
@@ -326,7 +332,7 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
         var extension = Path.GetExtension(file.FileName);
         if (!AllowedImageExtensions.Contains(extension))
         {
-            return BadRequest("Only .jpg, .jpeg, .png, and .webp images are allowed.");
+            return BadRequest("Only image files are allowed.");
         }
 
         var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");

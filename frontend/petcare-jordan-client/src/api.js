@@ -27,6 +27,31 @@ export const api = {
   getDashboard: () => request("/dashboard/summary"),
   getPets: () => request("/pets"),
   getAdoptions: () => request("/adoptions"),
+  getAdminAdoptions: (token) =>
+    request("/adoptions/admin", {
+      headers: buildHeaders({}, token)
+    }),
+  createAdoptionPost: (payload, token) =>
+    request("/adoptions", {
+      method: "POST",
+      headers: buildHeaders({ "Content-Type": "application/json" }, token),
+      body: JSON.stringify(payload)
+    }),
+  approveAdoptionPost: (id, token) =>
+    request(`/adoptions/admin/${id}/approve`, {
+      method: "PUT",
+      headers: buildHeaders({}, token)
+    }),
+  rejectAdoptionPost: (id, token) =>
+    request(`/adoptions/admin/${id}/reject`, {
+      method: "PUT",
+      headers: buildHeaders({}, token)
+    }),
+  deleteAdoptionPost: (id, token) =>
+    request(`/adoptions/admin/${id}`, {
+      method: "DELETE",
+      headers: buildHeaders({}, token)
+    }),
   getLostPets: () => request("/community/lost"),
   getFoundPets: () => request("/community/found"),
   getPendingCommunityReports: (token) =>

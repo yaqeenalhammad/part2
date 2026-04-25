@@ -8,6 +8,7 @@ public record AdoptionListingDto(
     string PetName,
     PetType PetType,
     string Breed,
+    decimal WeightKg,
     string PhotoUrl,
     string City,
     string Story,
@@ -17,6 +18,15 @@ public record AdoptionListingDto(
     DateTime PostedAtUtc);
 
 public record CreateAdoptionListingRequest(int PetId, string Story, string ContactMethod, string ContactDetails);
+
+public record CreateAdoptionPostRequest(
+    string PetName,
+    PetType PetType,
+    decimal WeightKg,
+    string City,
+    string PhotoUrl,
+    string Description,
+    string ContactPhone);
 
 public record LostPetReportDto(
     int Id,

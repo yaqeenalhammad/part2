@@ -8,7 +8,7 @@ const tabs = [
   { id: "chat", label: "Chat" },
   { id: "medical", label: "Medical" }
 ];
-const adminHiddenTabs = new Set(["adoption", "chat", "medical"]);
+const adminHiddenTabs = new Set(["chat", "medical"]);
 
 const roleOrder = ["User", "Vet", "Admin"];
 const roleConfig = {
@@ -49,6 +49,29 @@ const emptyRegisterForms = {
 };
 
 const petTypeOptions = ["Cat", "Dog", "Bird", "Rabbit", "Other"];
+const jordanTimeFormatter = new Intl.DateTimeFormat("en-JO", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Asia/Amman"
+});
+
+function formatJordanDateTime(value) {
+  const textValue = String(value);
+  const utcValue = /(?:Z|[+-]\d{2}:\d{2})$/.test(textValue) ? textValue : `${textValue}Z`;
+  return jordanTimeFormatter.format(new Date(utcValue));
+}
+
+function createInitialAdoptionPostForm(currentUser) {
+  return {
+    petName: "",
+    petType: "Cat",
+    weightKg: "",
+    city: currentUser?.city ?? "",
+    photoUrl: "",
+    description: "",
+    contactPhone: currentUser?.phoneNumber ?? ""
+  };
+}
 
 function getNowLocalInputValue() {
   return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -86,6 +109,57 @@ function StatCard({ label, value, accent }) {
     <div className="stat-card">
       <span className="stat-label">{label}</span>
       <strong style={{ color: accent }}>{value}</strong>
+    </div>
+  );
+}
+
+const jordanCityPositions = {
+  Irbid: { x: 22, y: 25 },
+  Ajloun: { x: 17, y: 32 },
+  Jerash: { x: 29, y: 35 },
+  Mafraq: { x: 60, y: 28 },
+  Salt: { x: 24, y: 47 },
+  Amman: { x: 40, y: 44 },
+  Zarqa: { x: 54, y: 43 },
+  Madaba: { x: 39, y: 56 },
+  Karak: { x: 47, y: 67 },
+  Tafilah: { x: 40, y: 77 },
+  Maan: { x: 50, y: 76 },
+  Aqaba: { x: 29, y: 87 }
+};
+
+function JordanPetsMap({ petsByCity }) {
+  const entries = Object.entries(petsByCity);
+  const maxPets = Math.max(...entries.map(([, value]) => value), 1);
+  const mappedCities = entries.filter(([city]) => jordanCityPositions[city]);
+
+  return (
+    <div className="jordan-map-layout">
+      <div className="jordan-map-panel" aria-label="Jordan pets by city map">
+        <img className="jordan-map-template" src="/jordan-map-template.jfif" alt="Jordan map outline" />
+
+        {mappedCities.map(([city, value]) => {
+          const position = jordanCityPositions[city];
+          const markerSize = 18 + (value / maxPets) * 6;
+          return (
+            <div
+              key={city}
+              className="map-city-pin"
+              style={{
+                left: `${position.x}%`,
+                top: `${position.y}%`,
+                "--pin-size": `${markerSize}px`
+              }}
+              title={`${city}: ${value} pets`}
+            >
+              <span className="map-pin-head">
+                <strong>{value}</strong>
+              </span>
+              <span>{city}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -299,6 +373,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [dashboard, setDashboard] = useState(null);
   const [adoptions, setAdoptions] = useState([]);
+  const [adminAdoptions, setAdminAdoptions] = useState([]);
   const [lostPets, setLostPets] = useState([]);
   const [foundPets, setFoundPets] = useState([]);
   const [pendingLostPets, setPendingLostPets] = useState([]);
@@ -340,7 +415,11 @@ function App() {
   });
   const [lostPostForm, setLostPostForm] = useState(() => createInitialLostPostForm(currentUser));
   const [foundPostForm, setFoundPostForm] = useState(() => createInitialFoundPostForm(currentUser));
+  const [adoptionPostForm, setAdoptionPostForm] = useState(() => createInitialAdoptionPostForm(currentUser));
+  const [adoptionNotice, setAdoptionNotice] = useState("");
+  const [brokenAdoptionImages, setBrokenAdoptionImages] = useState({});
   const [lostFoundNotice, setLostFoundNotice] = useState("");
+  const [adoptionPhotoUploading, setAdoptionPhotoUploading] = useState(false);
   const [lostPhotoUploading, setLostPhotoUploading] = useState(false);
   const [foundPhotoUploading, setFoundPhotoUploading] = useState(false);
 
@@ -376,6 +455,7 @@ function App() {
   useEffect(() => {
     if (!currentUser) {
       setAdoptions([]);
+      setAdminAdoptions([]);
       setLostPets([]);
       setFoundPets([]);
       setPendingLostPets([]);
@@ -412,7 +492,7 @@ function App() {
           ? api.getChatVets(currentUser.token)
           : Promise.resolve([]);
         const adoptionRequest = isAdmin
-          ? Promise.resolve([])
+          ? api.getAdminAdoptions(currentUser.token)
           : api.getAdoptions();
         const pendingCommunityRequest = isAdmin
           ? api.getPendingCommunityReports(currentUser.token)
@@ -437,6 +517,7 @@ function App() {
         }
 
         setAdoptions(adoptionData);
+        setAdminAdoptions(isAdmin ? adoptionData : []);
         setLostPets(lostData);
         setFoundPets(foundData);
         setPendingLostPets(pendingCommunityData.lostReports ?? []);
@@ -496,8 +577,10 @@ function App() {
   }, [currentUser]);
 
   useEffect(() => {
+    setAdoptionPostForm(createInitialAdoptionPostForm(currentUser));
     setLostPostForm(createInitialLostPostForm(currentUser));
     setFoundPostForm(createInitialFoundPostForm(currentUser));
+    setAdoptionNotice("");
     setLostFoundNotice("");
   }, [currentUser]);
 
@@ -602,6 +685,9 @@ function App() {
   );
   const isChatRole = currentUser?.role === "User" || currentUser?.role === "Vet";
   const canPublishCommunityPost = currentUser?.role === "User" || currentUser?.role === "Vet";
+  const pendingAdoptions = adminAdoptions.filter((item) => item.status === "Pending");
+  const publishedAdoptions = adminAdoptions.filter((item) => item.status === "Available");
+  const rejectedAdoptions = adminAdoptions.filter((item) => item.status === "Rejected");
   const communityLostPets = canPublishCommunityPost
     ? lostPets.filter((item) => item.reporterId !== currentUser.id)
     : lostPets;
@@ -655,6 +741,34 @@ function App() {
       setError("");
     } catch (registerError) {
       setError(registerError.message || "Registration failed.");
+    }
+  }
+
+  async function handleCreateAdoptionPost(event) {
+    event.preventDefault();
+
+    if (!currentUser?.token) {
+      setError("Please sign in to publish an adoption post.");
+      return;
+    }
+
+    if (!canPublishCommunityPost) {
+      setError("Only User and Vet accounts can publish adoption posts.");
+      return;
+    }
+
+    try {
+      const payload = {
+        ...adoptionPostForm,
+        weightKg: Number(adoptionPostForm.weightKg)
+      };
+      await api.createAdoptionPost(payload, currentUser.token);
+
+      setAdoptionPostForm(createInitialAdoptionPostForm(currentUser));
+      setAdoptionNotice("Adoption post sent successfully. It will appear after admin approval.");
+      setError("");
+    } catch (createError) {
+      setError(createError.message || "Could not submit the adoption post.");
     }
   }
 
@@ -718,7 +832,7 @@ function App() {
     }
   }
 
-  async function handleUploadCommunityPhoto(file, setForm, setUploading) {
+  async function handleUploadCommunityPhoto(file, setForm, setUploading, setNotice = setLostFoundNotice) {
     if (!file) {
       return;
     }
@@ -732,7 +846,7 @@ function App() {
       setUploading(true);
       const uploaded = await api.uploadCommunityImage(file, currentUser.token);
       setForm((current) => ({ ...current, photoUrl: uploaded.url }));
-      setLostFoundNotice("Photo uploaded successfully. You can now submit your report.");
+      setNotice("Photo uploaded successfully. You can now submit your post.");
       setError("");
     } catch (uploadError) {
       setError(uploadError.message || "Could not upload this image.");
@@ -771,6 +885,44 @@ function App() {
       setError("");
     } catch (reviewError) {
       setError(reviewError.message || "Could not update this post.");
+    }
+  }
+
+  async function handleReviewAdoptionPost(id, decision) {
+    if (!currentUser?.token || currentUser.role !== "Admin") {
+      setError("Only Admin accounts can review adoption posts.");
+      return;
+    }
+
+    try {
+      const updatedPost = decision === "approve"
+        ? await api.approveAdoptionPost(id, currentUser.token)
+        : await api.rejectAdoptionPost(id, currentUser.token);
+
+      setAdminAdoptions((current) =>
+        current.map((item) => (item.id === id ? updatedPost : item))
+      );
+      setAdoptionNotice(decision === "approve" ? "Adoption post approved and published." : "Adoption post rejected.");
+      setError("");
+    } catch (reviewError) {
+      setError(reviewError.message || "Could not update this adoption post.");
+    }
+  }
+
+  async function handleDeleteAdoptionPost(id) {
+    if (!currentUser?.token || currentUser.role !== "Admin") {
+      setError("Only Admin accounts can delete adoption posts.");
+      return;
+    }
+
+    try {
+      await api.deleteAdoptionPost(id, currentUser.token);
+      setAdminAdoptions((current) => current.filter((item) => item.id !== id));
+      setAdoptions((current) => current.filter((item) => item.id !== id));
+      setAdoptionNotice("Adoption post deleted.");
+      setError("");
+    } catch (deleteError) {
+      setError(deleteError.message || "Could not delete this adoption post.");
     }
   }
 
@@ -988,14 +1140,7 @@ function App() {
                 </SectionCard>
 
                 <SectionCard title="Pets By City" subtitle="Jordanian city coverage for the seeded pet data.">
-                  <div className="city-grid">
-                    {Object.entries(dashboard.petsByCity).map(([city, value]) => (
-                      <article key={city} className="city-card">
-                        <strong>{city}</strong>
-                        <span>{value} pets</span>
-                      </article>
-                    ))}
-                  </div>
+                  <JordanPetsMap petsByCity={dashboard.petsByCity} />
                 </SectionCard>
 
                 <SectionCard title="Owner Notifications" subtitle="Vaccine reminders that owners receive before due dates.">
@@ -1016,29 +1161,216 @@ function App() {
             ) : null}
 
             {activeTab === "adoption" && currentUser && !privateLoading ? (
-              <SectionCard title="Adoption Marketplace" subtitle="Owners can publish pets for adoption and adopters can contact them directly.">
-                <div className="pet-grid">
-                  {adoptions.map((item) => (
-                    <article key={item.id} className="pet-card">
-                      <img src={item.photoUrl} alt={item.petName} />
-                      <div className="pet-card-body">
-                        <div className="pet-card-head">
-                          <div>
-                            <h4>{item.petName}</h4>
-                            <span>{item.petType} | {item.breed}</span>
-                          </div>
-                          <span className={item.status === "Available" ? "pill success" : "pill warning"}>{item.status}</span>
-                        </div>
-                        <p>{item.story}</p>
-                        <div className="meta-line">
-                          <span>{item.city}</span>
-                          <span>{item.contactMethod}: {item.contactDetails}</span>
-                        </div>
+              <div className="content-grid">
+                {currentUser.role === "Admin" ? (
+                  <>
+                    <SectionCard title="Pending Adoption Posts" subtitle="Approve posts to publish them, or reject posts that should stay hidden.">
+                      <div className="list-stack">
+                        {pendingAdoptions.length > 0 ? (
+                          pendingAdoptions.map((item) => (
+                            <article key={item.id} className="list-card">
+                              <strong>{item.petName}</strong>
+                              <p>{item.story}</p>
+                              <div className="meta-line">
+                                <span>{item.petType}</span>
+                                <span>{item.city}</span>
+                                <span>{item.weightKg} kg</span>
+                              </div>
+                              <div className="meta-line">
+                                <span>{item.contactMethod}: {item.contactDetails}</span>
+                              </div>
+                              <div className="form-grid-two">
+                                <button type="button" className="admin-action-button" onClick={() => handleReviewAdoptionPost(item.id, "approve")}>
+                                  Approve
+                                </button>
+                                <button type="button" className="admin-action-button" onClick={() => handleReviewAdoptionPost(item.id, "reject")}>
+                                  Reject
+                                </button>
+                              </div>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty-state">No pending adoption posts.</p>
+                        )}
                       </div>
-                    </article>
-                  ))}
-                </div>
-              </SectionCard>
+                    </SectionCard>
+
+                    <SectionCard title="Published Adoption Posts" subtitle="Approved adoption posts visible to User and Vet accounts.">
+                      <div className="list-stack">
+                        {publishedAdoptions.length > 0 ? (
+                          publishedAdoptions.map((item) => (
+                            <article key={item.id} className="list-card">
+                              <strong>{item.petName}</strong>
+                              <p>{item.story}</p>
+                              <div className="meta-line">
+                                <span>{item.petType}</span>
+                                <span>{item.city}</span>
+                                <span>{item.weightKg} kg</span>
+                              </div>
+                              <div className="meta-line">
+                                <span>{item.contactMethod}: {item.contactDetails}</span>
+                              </div>
+                              <button type="button" className="admin-action-button" onClick={() => handleDeleteAdoptionPost(item.id)}>
+                                Delete
+                              </button>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty-state">No published adoption posts.</p>
+                        )}
+                      </div>
+                    </SectionCard>
+
+                    <SectionCard title="Rejected Adoption Posts" subtitle="Rejected posts stay hidden from users and vets.">
+                      <div className="list-stack">
+                        {rejectedAdoptions.length > 0 ? (
+                          rejectedAdoptions.map((item) => (
+                            <article key={item.id} className="list-card">
+                              <strong>{item.petName}</strong>
+                              <p>{item.story}</p>
+                              <div className="meta-line">
+                                <span>{item.petType}</span>
+                                <span>{item.city}</span>
+                              </div>
+                              <button type="button" className="admin-action-button" onClick={() => handleDeleteAdoptionPost(item.id)}>
+                                Delete
+                              </button>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty-state">No rejected adoption posts.</p>
+                        )}
+                      </div>
+                    </SectionCard>
+                  </>
+                ) : (
+                  <SectionCard title="Publish Adoption Post" subtitle="User and Vet accounts can add a pet with direct owner contact.">
+                    {canPublishCommunityPost ? (
+                      <form className="post-form adoption-form" onSubmit={handleCreateAdoptionPost}>
+                        <div className="form-grid-two">
+                          <input
+                            type="text"
+                            placeholder="Pet name"
+                            value={adoptionPostForm.petName}
+                            onChange={(event) => setAdoptionPostForm((current) => ({ ...current, petName: event.target.value }))}
+                            required
+                          />
+                          <select
+                            value={adoptionPostForm.petType}
+                            onChange={(event) => setAdoptionPostForm((current) => ({ ...current, petType: event.target.value }))}
+                          >
+                            {petTypeOptions.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          placeholder="Weight in kg"
+                          value={adoptionPostForm.weightKg}
+                          onChange={(event) => setAdoptionPostForm((current) => ({ ...current, weightKg: event.target.value }))}
+                          required
+                        />
+                        <input
+                          type="text"
+                          placeholder="City or area"
+                          value={adoptionPostForm.city}
+                          onChange={(event) => setAdoptionPostForm((current) => ({ ...current, city: event.target.value }))}
+                          required
+                        />
+                        <textarea
+                          placeholder="Simple description"
+                          value={adoptionPostForm.description}
+                          onChange={(event) => setAdoptionPostForm((current) => ({ ...current, description: event.target.value }))}
+                          required
+                        />
+                        <input
+                          type="url"
+                          placeholder="Photo URL (optional if you upload from device)"
+                          value={adoptionPostForm.photoUrl}
+                          onChange={(event) => setAdoptionPostForm((current) => ({ ...current, photoUrl: event.target.value }))}
+                        />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) =>
+                            handleUploadCommunityPhoto(
+                              event.target.files?.[0],
+                              setAdoptionPostForm,
+                              setAdoptionPhotoUploading,
+                              setAdoptionNotice
+                            )
+                          }
+                        />
+                        <p className="upload-hint">
+                          {adoptionPhotoUploading
+                            ? "Uploading image..."
+                            : adoptionPostForm.photoUrl
+                            ? "Image is ready. You can submit the adoption post."
+                            : "Choose an image from your device, or paste a Photo URL."}
+                        </p>
+                        <input
+                          type="text"
+                          placeholder="Owner contact phone"
+                          value={adoptionPostForm.contactPhone}
+                          onChange={(event) => setAdoptionPostForm((current) => ({ ...current, contactPhone: event.target.value }))}
+                          required
+                        />
+                        <button type="submit">Submit Adoption Post</button>
+                      </form>
+                    ) : (
+                      <p className="empty-state">Only User and Vet accounts can publish adoption posts.</p>
+                    )}
+                  </SectionCard>
+                )}
+
+                {adoptionNotice ? <p className="form-success">{adoptionNotice}</p> : null}
+
+                {currentUser.role !== "Admin" ? (
+                <SectionCard title="Adoption Marketplace" subtitle="Owners can publish pets for adoption and adopters can contact them directly.">
+                  <div className="pet-grid">
+                    {adoptions.length > 0 ? (
+                      adoptions.map((item) => (
+                        <article key={item.id} className="pet-card">
+                          {brokenAdoptionImages[item.id] ? (
+                            <div className="pet-image-fallback">Photo unavailable</div>
+                          ) : (
+                            <img
+                              src={item.photoUrl}
+                              alt={item.petName}
+                              onError={() => setBrokenAdoptionImages((current) => ({ ...current, [item.id]: true }))}
+                            />
+                          )}
+                          <div className="pet-card-body">
+                            <div className="pet-card-head">
+                              <div>
+                                <h4>{item.petName}</h4>
+                                <span>{item.petType} | {item.breed}</span>
+                              </div>
+                              <span className={item.status === "Available" ? "pill success" : "pill warning"}>{item.status}</span>
+                            </div>
+                            <p>{item.story}</p>
+                            <div className="meta-line">
+                              <span>{item.city}</span>
+                              <span>{item.weightKg} kg</span>
+                            </div>
+                            <div className="meta-line">
+                              <span>{item.contactMethod}: {item.contactDetails}</span>
+                            </div>
+                          </div>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="empty-state">No adoption posts yet.</p>
+                    )}
+                  </div>
+                </SectionCard>
+                ) : null}
+              </div>
             ) : null}
 
             {activeTab === "lostfound" && currentUser && !privateLoading ? (
@@ -1515,7 +1847,7 @@ function App() {
                               >
                                 <div className="chat-message-meta">
                                   <strong>{message.senderName}</strong>
-                                  <span>{new Date(message.sentAtUtc).toLocaleString()}</span>
+                                  <span>{formatJordanDateTime(message.sentAtUtc)}</span>
                                 </div>
                                 <p>{message.message}</p>
                               </article>

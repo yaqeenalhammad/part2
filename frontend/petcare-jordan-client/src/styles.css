@@ -635,6 +635,88 @@ button {
   gap: 14px;
 }
 
+.jordan-map-layout {
+  display: flex;
+  justify-content: center;
+}
+
+.jordan-map-panel {
+  position: relative;
+  width: 100%;
+  max-width: 980px;
+  aspect-ratio: 550 / 696;
+  border-radius: 22px;
+  border: 1px solid #dbeafe;
+  background:
+    linear-gradient(180deg, rgba(240, 249, 255, 0.95), rgba(236, 253, 245, 0.78)),
+    repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.14) 0, rgba(148, 163, 184, 0.14) 1px, transparent 1px, transparent 18px);
+  overflow: visible;
+}
+
+.jordan-map-template {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  filter: drop-shadow(0 22px 28px rgba(15, 23, 42, 0.12));
+  mix-blend-mode: multiply;
+  opacity: 0.92;
+}
+
+.map-city-pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  text-align: center;
+  z-index: 2;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.map-pin-head {
+  width: var(--pin-size);
+  height: var(--pin-size);
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  background: #0f274f;
+  color: #fff;
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.3), 0 0 0 4px rgba(15, 39, 79, 0.14);
+  display: grid;
+  place-items: center;
+  transform: rotate(-45deg);
+}
+
+.map-pin-head::after {
+  content: "";
+  width: calc(var(--pin-size) * 0.38);
+  height: calc(var(--pin-size) * 0.38);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  position: absolute;
+}
+
+.map-pin-head strong {
+  position: relative;
+  z-index: 1;
+  transform: rotate(45deg);
+  line-height: 1;
+  font-size: 0.78rem;
+}
+
+.map-city-pin > span:last-child {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+  font-size: 0.56rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 .user-medical-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -691,10 +773,22 @@ button {
   font-weight: 600;
 }
 
-.pet-card img {
+.pet-card img,
+.pet-image-fallback {
   width: 100%;
   height: 180px;
+}
+
+.pet-card img {
   object-fit: cover;
+}
+
+.pet-image-fallback {
+  display: grid;
+  place-items: center;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 700;
 }
 
 .pet-card-body {
@@ -770,7 +864,8 @@ td {
 
   .post-forms,
   .form-grid-two,
-  .chat-layout {
+  .chat-layout,
+  .jordan-map-layout {
     grid-template-columns: 1fr;
   }
 

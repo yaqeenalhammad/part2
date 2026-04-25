@@ -10,5 +10,5 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$fr
 
 Write-Host ""
 Write-Host "PetCare Jordan is starting in two terminal windows." -ForegroundColor Green
-Write-Host "Backend: https://localhost:7146" -ForegroundColor Yellow
+Write-Host "Backend: http://localhost:5031" -ForegroundColor Yellow
 Write-Host "Frontend: http://localhost:5173" -ForegroundColor Yellow
