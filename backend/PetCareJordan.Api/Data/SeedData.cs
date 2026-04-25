@@ -176,17 +176,21 @@ public static class SeedData
             END
             """;
 
-        const string ensureMessageReadColumns = """
+        const string ensureMessageReadByRecipientColumn = """
             IF COL_LENGTH(N'[ChatMessages]', N'IsReadByRecipient') IS NULL
             BEGIN
                 ALTER TABLE [ChatMessages]
                 ADD [IsReadByRecipient] BIT NOT NULL CONSTRAINT [DF_ChatMessages_IsReadByRecipient] DEFAULT(1);
-
-                UPDATE [ChatMessages]
-                SET [IsReadByRecipient] = 1
-                WHERE [IsReadByRecipient] = 0;
             END
+            """;
 
+        const string ensureMessageReadValues = """
+            UPDATE [ChatMessages]
+            SET [IsReadByRecipient] = 1
+            WHERE [IsReadByRecipient] = 0;
+            """;
+
+        const string ensureMessageReadAtColumn = """
             IF COL_LENGTH(N'[ChatMessages]', N'ReadAtUtc') IS NULL
             BEGIN
                 ALTER TABLE [ChatMessages]
@@ -196,7 +200,9 @@ public static class SeedData
 
         await context.Database.ExecuteSqlRawAsync(createConversations);
         await context.Database.ExecuteSqlRawAsync(createMessages);
-        await context.Database.ExecuteSqlRawAsync(ensureMessageReadColumns);
+        await context.Database.ExecuteSqlRawAsync(ensureMessageReadByRecipientColumn);
+        await context.Database.ExecuteSqlRawAsync(ensureMessageReadValues);
+        await context.Database.ExecuteSqlRawAsync(ensureMessageReadAtColumn);
     }
 
     private static async Task EnsureCommunityReportReporterColumnsAsync(PetCareJordanContext context)
