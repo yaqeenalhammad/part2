@@ -140,7 +140,7 @@ function JordanPetsMap({ petsByCity }) {
 
         {mappedCities.map(([city, value]) => {
           const position = jordanCityPositions[city];
-          const markerSize = 18 + (value / maxPets) * 6;
+          const markerSize = 24 + (value / maxPets) * 8;
           return (
             <div
               key={city}
@@ -1127,7 +1127,7 @@ function App() {
 
                 <SectionCard title="Pets By Type" subtitle="Distribution of demo pets across the platform.">
                   <div className="bar-list">
-                    {Object.entries(dashboard.petsByType).map(([label, value]) => (
+                    {Object.entries(dashboard.petsByType).filter(([label]) => Number.isNaN(Number(label))).map(([label, value]) => (
                       <div key={label} className="bar-row">
                         <span>{label}</span>
                         <div className="bar-track">
