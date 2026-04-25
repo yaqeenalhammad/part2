@@ -8,7 +8,7 @@ public static class SeedData
 {
     public static async Task InitializeAsync(PetCareJordanContext context)
     {
-        await EnsureChatTablesAsync(context);
+       await EnsureChatTablesAsync(context);
         var passwordService = new PasswordService();
 
         if (context.Users.Any())
