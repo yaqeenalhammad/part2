@@ -140,7 +140,7 @@ function JordanPetsMap({ petsByCity }) {
 
         {mappedCities.map(([city, value]) => {
           const position = jordanCityPositions[city];
-          const markerSize = 24 + (value / maxPets) * 8;
+          const markerSize = 26 + (value / maxPets) * 10;
           return (
             <div
               key={city}
