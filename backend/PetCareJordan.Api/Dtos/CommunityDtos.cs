@@ -24,6 +24,7 @@ public record CreateAdoptionPostRequest(
     PetType PetType,
     decimal WeightKg,
     string City,
+    string? LocationDetails,
     string PhotoUrl,
     string Description,
     string ContactPhone);

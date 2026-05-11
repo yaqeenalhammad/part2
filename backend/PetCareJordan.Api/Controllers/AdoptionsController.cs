@@ -54,11 +54,12 @@ public class AdoptionsController(PetCareJordanContext context) : ControllerBase
 
         if (string.IsNullOrWhiteSpace(request.PetName) ||
             string.IsNullOrWhiteSpace(request.City) ||
+            string.IsNullOrWhiteSpace(request.LocationDetails) ||
             string.IsNullOrWhiteSpace(request.PhotoUrl) ||
             string.IsNullOrWhiteSpace(request.Description) ||
             string.IsNullOrWhiteSpace(request.ContactPhone))
         {
-            return BadRequest("Pet name, city, photo, description, and contact phone are required.");
+            return BadRequest("Pet name, city, exact location, photo, description, and contact phone are required.");
         }
 
         if (request.WeightKg <= 0)
@@ -76,6 +77,7 @@ public class AdoptionsController(PetCareJordanContext context) : ControllerBase
             CollarId = $"ADOPT-{Guid.NewGuid():N}"[..18].ToUpperInvariant(),
             Color = "Unknown",
             City = request.City.Trim(),
+            LocationDetails = request.LocationDetails.Trim(),
             WeightKg = request.WeightKg,
             IsNeutered = false,
             Description = request.Description.Trim(),

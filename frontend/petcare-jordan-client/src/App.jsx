@@ -67,6 +67,7 @@ function createInitialAdoptionPostForm(currentUser) {
     petType: "Cat",
     weightKg: "",
     city: currentUser?.city ?? "",
+    locationDetails: "",
     photoUrl: "",
     description: "",
     contactPhone: currentUser?.phoneNumber ?? ""
@@ -128,13 +129,16 @@ const jordanCityPositions = {
   Aqaba: { x: 29, y: 87 }
 };
 
-function JordanPetsMap({ petsByCity }) {
+function JordanPetsMap({ petsByCity, pets, selectedCity, onSelectCity }) {
   const entries = Object.entries(petsByCity);
   const maxPets = Math.max(...entries.map(([, value]) => value), 1);
   const mappedCities = entries.filter(([city]) => jordanCityPositions[city]);
+  const activeCity = selectedCity && petsByCity[selectedCity] ? selectedCity : mappedCities[0]?.[0] ?? "";
+  const selectedPets = pets.filter((pet) => pet.city === activeCity);
+  const mapQuery = selectedPets[0]?.locationDetails || activeCity || "Jordan";
 
   return (
-    <div className="jordan-map-layout">
+    <div className="jordan-map-layout interactive">
       <div className="jordan-map-panel" aria-label="Jordan pets by city map">
         <img className="jordan-map-template" src="/jordan-map-template.jfif" alt="Jordan map outline" />
 
@@ -142,9 +146,11 @@ function JordanPetsMap({ petsByCity }) {
           const position = jordanCityPositions[city];
           const markerSize = 26 + (value / maxPets) * 10;
           return (
-            <div
+            <button
               key={city}
-              className="map-city-pin"
+              type="button"
+              className={city === activeCity ? "map-city-pin active" : "map-city-pin"}
+              onClick={() => onSelectCity(city)}
               style={{
                 left: `${position.x}%`,
                 top: `${position.y}%`,
@@ -156,10 +162,51 @@ function JordanPetsMap({ petsByCity }) {
                 <strong>{value}</strong>
               </span>
               <span>{city}</span>
-            </div>
+            </button>
           );
         })}
       </div>
+
+      <aside className="map-details-panel">
+        <div className="map-details-head">
+          <div>
+            <span>Selected city</span>
+            <strong>{activeCity || "No city selected"}</strong>
+          </div>
+          <span className="pill success">{selectedPets.length} pets</span>
+        </div>
+
+        <div className="map-pet-list">
+          <iframe
+            className="google-map-preview"
+            title={`${activeCity} pets map`}
+            src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`}
+            loading="lazy"
+          />
+
+          {selectedPets.length > 0 ? (
+            selectedPets.map((pet) => (
+              <article key={pet.id} className="map-pet-card">
+                <img src={pet.photoUrl} alt={pet.name} />
+                <div>
+                  <strong>{pet.name}</strong>
+                  <span>{pet.type} | {pet.breed}</span>
+                  <p>{pet.locationDetails || pet.city}</p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pet.locationDetails || pet.city)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open in Google Maps
+                  </a>
+                </div>
+              </article>
+            ))
+          ) : (
+            <p className="empty-state">Choose a city marker to see its pets and exact locations.</p>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }
@@ -176,6 +223,14 @@ function SectionCard({ title, subtitle, children }) {
       {children}
     </section>
   );
+}
+
+function PostPhoto({ src, alt }) {
+  if (!src) {
+    return null;
+  }
+
+  return <img className="post-photo" src={src} alt={alt} />;
 }
 
 function AuthPanel({
@@ -372,6 +427,8 @@ function AuthPanel({
 function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [dashboard, setDashboard] = useState(null);
+  const [allPets, setAllPets] = useState([]);
+  const [selectedMapCity, setSelectedMapCity] = useState("");
   const [adoptions, setAdoptions] = useState([]);
   const [adminAdoptions, setAdminAdoptions] = useState([]);
   const [lostPets, setLostPets] = useState([]);
@@ -426,8 +483,11 @@ function App() {
   useEffect(() => {
     async function loadData() {
       try {
-        const dashboardData = await api.getDashboard();
+        const [dashboardData, petsData] = await Promise.all([api.getDashboard(), api.getPets()]);
         setDashboard(dashboardData);
+        setAllPets(petsData);
+        const topCity = Object.entries(dashboardData.petsByCity ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+        setSelectedMapCity(topCity);
       } catch {
         setError("Could not load the API. Start the backend first, then refresh the page.");
       } finally {
@@ -763,6 +823,10 @@ function App() {
         weightKg: Number(adoptionPostForm.weightKg)
       };
       await api.createAdoptionPost(payload, currentUser.token);
+      const [dashboardData, petsData] = await Promise.all([api.getDashboard(), api.getPets()]);
+      setDashboard(dashboardData);
+      setAllPets(petsData);
+      setSelectedMapCity(adoptionPostForm.city);
 
       setAdoptionPostForm(createInitialAdoptionPostForm(currentUser));
       setAdoptionNotice("Adoption post sent successfully. It will appear after admin approval.");
@@ -1139,8 +1203,13 @@ function App() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Pets By City" subtitle="Jordanian city coverage for the seeded pet data.">
-                  <JordanPetsMap petsByCity={dashboard.petsByCity} />
+                <SectionCard title="Interactive Pets Map" subtitle="Click a city marker to see each pet's exact area and street.">
+                  <JordanPetsMap
+                    petsByCity={dashboard.petsByCity}
+                    pets={allPets}
+                    selectedCity={selectedMapCity}
+                    onSelectCity={setSelectedMapCity}
+                  />
                 </SectionCard>
 
                 <SectionCard title="Owner Notifications" subtitle="Vaccine reminders that owners receive before due dates.">
@@ -1169,6 +1238,7 @@ function App() {
                         {pendingAdoptions.length > 0 ? (
                           pendingAdoptions.map((item) => (
                             <article key={item.id} className="list-card">
+                              <PostPhoto src={item.photoUrl} alt={item.petName} />
                               <strong>{item.petName}</strong>
                               <p>{item.story}</p>
                               <div className="meta-line">
@@ -1200,6 +1270,7 @@ function App() {
                         {publishedAdoptions.length > 0 ? (
                           publishedAdoptions.map((item) => (
                             <article key={item.id} className="list-card">
+                              <PostPhoto src={item.photoUrl} alt={item.petName} />
                               <strong>{item.petName}</strong>
                               <p>{item.story}</p>
                               <div className="meta-line">
@@ -1226,6 +1297,7 @@ function App() {
                         {rejectedAdoptions.length > 0 ? (
                           rejectedAdoptions.map((item) => (
                             <article key={item.id} className="list-card">
+                              <PostPhoto src={item.photoUrl} alt={item.petName} />
                               <strong>{item.petName}</strong>
                               <p>{item.story}</p>
                               <div className="meta-line">
@@ -1277,9 +1349,16 @@ function App() {
                         />
                         <input
                           type="text"
-                          placeholder="City or area"
+                          placeholder="City"
                           value={adoptionPostForm.city}
                           onChange={(event) => setAdoptionPostForm((current) => ({ ...current, city: event.target.value }))}
+                          required
+                        />
+                        <input
+                          type="text"
+                          placeholder="Exact location, area, or street"
+                          value={adoptionPostForm.locationDetails}
+                          onChange={(event) => setAdoptionPostForm((current) => ({ ...current, locationDetails: event.target.value }))}
                           required
                         />
                         <textarea
@@ -1382,6 +1461,7 @@ function App() {
                         {pendingLostPets.length > 0 ? (
                           pendingLostPets.map((item) => (
                             <article key={item.id} className="list-card">
+                              <PostPhoto src={item.photoUrl} alt={item.petName} />
                               <strong>{item.petName}</strong>
                               <p>{item.description}</p>
                               <div className="meta-line">
@@ -1414,6 +1494,7 @@ function App() {
                         {pendingFoundPets.length > 0 ? (
                           pendingFoundPets.map((item) => (
                             <article key={item.id} className="list-card">
+                              <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} />
                               <strong>{item.petType}</strong>
                               <p>{item.description}</p>
                               <div className="meta-line">
@@ -1445,6 +1526,7 @@ function App() {
                         {lostPets.length > 0 ? (
                           lostPets.map((item) => (
                             <article key={item.id} className="list-card">
+                              <PostPhoto src={item.photoUrl} alt={item.petName} />
                               <strong>{item.petName}</strong>
                               <p>{item.description}</p>
                               <div className="meta-line">
@@ -1472,6 +1554,7 @@ function App() {
                         {foundPets.length > 0 ? (
                           foundPets.map((item) => (
                             <article key={item.id} className="list-card">
+                              <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} />
                               <strong>{item.petType}</strong>
                               <p>{item.description}</p>
                               <div className="meta-line">
@@ -1502,6 +1585,7 @@ function App() {
                           {myLostPets.length > 0 ? (
                             myLostPets.map((item) => (
                               <article key={item.id} className="list-card">
+                                <PostPhoto src={item.photoUrl} alt={item.petName} />
                                 <strong>{item.petName}</strong>
                                 <p>{item.description}</p>
                                 <div className="meta-line">
@@ -1524,6 +1608,7 @@ function App() {
                           {myFoundPets.length > 0 ? (
                             myFoundPets.map((item) => (
                               <article key={item.id} className="list-card">
+                                <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} />
                                 <strong>{item.petType}</strong>
                                 <p>{item.description}</p>
                                 <div className="meta-line">
@@ -1549,6 +1634,7 @@ function App() {
                           {communityLostPets.length > 0 ? (
                             communityLostPets.map((item) => (
                               <article key={item.id} className="list-card">
+                                <PostPhoto src={item.photoUrl} alt={item.petName} />
                                 <strong>{item.petName}</strong>
                                 <p>{item.description}</p>
                                 <div className="meta-line">
@@ -1572,6 +1658,7 @@ function App() {
                           {communityFoundPets.length > 0 ? (
                             communityFoundPets.map((item) => (
                               <article key={item.id} className="list-card">
+                                <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} />
                                 <strong>{item.petType}</strong>
                                 <p>{item.description}</p>
                                 <div className="meta-line">

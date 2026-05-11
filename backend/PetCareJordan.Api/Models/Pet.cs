@@ -11,6 +11,7 @@ public class Pet
     public string CollarId { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
     public string City { get; set; } = string.Empty;
+    public string LocationDetails { get; set; } = string.Empty;
     public decimal WeightKg { get; set; }
     public bool IsNeutered { get; set; }
     public string Description { get; set; } = string.Empty;

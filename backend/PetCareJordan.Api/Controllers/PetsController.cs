@@ -40,6 +40,7 @@ public class PetsController(PetCareJordanContext context) : ControllerBase
                 pet.Type,
                 pet.Breed,
                 pet.City,
+                pet.LocationDetails,
                 pet.CollarId,
                 pet.PhotoUrl,
                 pet.Owner!.FullName,
@@ -75,6 +76,7 @@ public class PetsController(PetCareJordanContext context) : ControllerBase
             pet.CollarId,
             pet.Color,
             pet.City,
+            pet.LocationDetails,
             pet.WeightKg,
             pet.IsNeutered,
             pet.Description,
@@ -98,7 +100,7 @@ public class PetsController(PetCareJordanContext context) : ControllerBase
             return NotFound();
         }
 
-        return Ok(new PetSummaryDto(pet.Id, pet.Name, pet.Type, pet.Breed, pet.City, pet.CollarId, pet.PhotoUrl, pet.Owner.FullName, pet.AdoptionListing?.Status));
+        return Ok(new PetSummaryDto(pet.Id, pet.Name, pet.Type, pet.Breed, pet.City, pet.LocationDetails, pet.CollarId, pet.PhotoUrl, pet.Owner.FullName, pet.AdoptionListing?.Status));
     }
 
     [HttpPost]
@@ -120,6 +122,7 @@ public class PetsController(PetCareJordanContext context) : ControllerBase
             CollarId = request.CollarId,
             Color = request.Color,
             City = request.City,
+            LocationDetails = request.LocationDetails?.Trim() ?? string.Empty,
             WeightKg = request.WeightKg,
             IsNeutered = request.IsNeutered,
             Description = request.Description,
