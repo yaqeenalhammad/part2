@@ -5,12 +5,13 @@ using Microsoft.EntityFrameworkCore;
 using PetCareJordan.Api.Data;
 using PetCareJordan.Api.Dtos;
 using PetCareJordan.Api.Models;
+using PetCareJordan.Api.Services;
 
 namespace PetCareJordan.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MedicalController(PetCareJordanContext context) : ControllerBase
+public class MedicalController(PetCareJordanContext context, IWebHostEnvironment environment) : ControllerBase
 {
     [Authorize(Roles = "Vet,Admin")]
     [HttpGet("upcoming-vaccines")]
@@ -95,7 +96,7 @@ public class MedicalController(PetCareJordanContext context) : ControllerBase
                 pet.Name,
                 pet.Type,
                 pet.Breed,
-                pet.PhotoUrl,
+                PhotoUrlResolver.Resolve(pet.PhotoUrl, pet.Type, pet.Breed, environment),
                 healthSummary,
                 isUpToDate,
                 pendingVaccinesCount,

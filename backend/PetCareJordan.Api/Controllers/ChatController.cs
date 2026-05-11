@@ -238,6 +238,35 @@ public class ChatController(PetCareJordanContext context) : ControllerBase
             message.SentAtUtc));
     }
 
+    [HttpDelete("conversations/{conversationId:int}")]
+    public async Task<IActionResult> DeleteConversation(int conversationId)
+    {
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Unauthorized();
+        }
+
+        var conversation = await context.ChatConversations
+            .Include(item => item.Messages)
+            .FirstOrDefaultAsync(item => item.Id == conversationId);
+
+        if (conversation is null)
+        {
+            return NotFound();
+        }
+
+        if (!IsParticipant(conversation, currentUserId.Value))
+        {
+            return Forbid();
+        }
+
+        context.ChatConversations.Remove(conversation);
+        await context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
     private int? GetCurrentUserId()
     {
         return int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)

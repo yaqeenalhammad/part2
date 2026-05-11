@@ -49,6 +49,13 @@ const emptyRegisterForms = {
 };
 
 const petTypeOptions = ["Cat", "Dog", "Bird", "Rabbit", "Other"];
+const fallbackPetPhotos = {
+  Cat: "https://images.pexels.com/photos/15116820/pexels-photo-15116820.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop",
+  Dog: "https://images.pexels.com/photos/458799/pexels-photo-458799.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop",
+  Bird: "https://images.pexels.com/photos/11961251/pexels-photo-11961251.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop",
+  Rabbit: "https://images.pexels.com/photos/3730206/pexels-photo-3730206.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop",
+  Other: "https://images.pexels.com/photos/18497947/pexels-photo-18497947.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop"
+};
 const jordanTimeFormatter = new Intl.DateTimeFormat("en-JO", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -187,7 +194,11 @@ function JordanPetsMap({ petsByCity, pets, selectedCity, onSelectCity }) {
           {selectedPets.length > 0 ? (
             selectedPets.map((pet) => (
               <article key={pet.id} className="map-pet-card">
-                <img src={pet.photoUrl} alt={pet.name} />
+                <img
+                  src={pet.photoUrl}
+                  alt={pet.name}
+                  onError={(event) => { event.currentTarget.src = fallbackPetPhotos[pet.type] ?? fallbackPetPhotos.Other; }}
+                />
                 <div>
                   <strong>{pet.name}</strong>
                   <span>{pet.type} | {pet.breed}</span>
@@ -225,12 +236,12 @@ function SectionCard({ title, subtitle, children }) {
   );
 }
 
-function PostPhoto({ src, alt }) {
+function PostPhoto({ src, alt, petType = "Other" }) {
   if (!src) {
     return null;
   }
 
-  return <img className="post-photo" src={src} alt={alt} />;
+  return <img className="post-photo" src={src} alt={alt} onError={(event) => { event.currentTarget.src = fallbackPetPhotos[petType] ?? fallbackPetPhotos.Other; }} />;
 }
 
 function AuthPanel({
@@ -1081,6 +1092,24 @@ function App() {
     }
   }
 
+  async function handleDeleteChatConversation(conversationId) {
+    if (!currentUser?.token) {
+      setError("Please sign in first.");
+      return;
+    }
+
+    try {
+      await api.deleteChatConversation(conversationId, currentUser.token);
+      setChatMessages([]);
+      setChatMessageDraft("");
+      setChatNotice("Chat deleted. You can start a new one with the same vet anytime.");
+      await refreshChatLists();
+      setError("");
+    } catch (requestError) {
+      setError(requestError.message || "Could not delete this chat.");
+    }
+  }
+
   function handleSignOut() {
     setCurrentUser(null);
     setActiveTab("overview");
@@ -1238,7 +1267,7 @@ function App() {
                         {pendingAdoptions.length > 0 ? (
                           pendingAdoptions.map((item) => (
                             <article key={item.id} className="list-card">
-                              <PostPhoto src={item.photoUrl} alt={item.petName} />
+                              <PostPhoto src={item.photoUrl} alt={item.petName} petType={item.petType} />
                               <strong>{item.petName}</strong>
                               <p>{item.story}</p>
                               <div className="meta-line">
@@ -1270,7 +1299,7 @@ function App() {
                         {publishedAdoptions.length > 0 ? (
                           publishedAdoptions.map((item) => (
                             <article key={item.id} className="list-card">
-                              <PostPhoto src={item.photoUrl} alt={item.petName} />
+                              <PostPhoto src={item.photoUrl} alt={item.petName} petType={item.petType} />
                               <strong>{item.petName}</strong>
                               <p>{item.story}</p>
                               <div className="meta-line">
@@ -1297,7 +1326,7 @@ function App() {
                         {rejectedAdoptions.length > 0 ? (
                           rejectedAdoptions.map((item) => (
                             <article key={item.id} className="list-card">
-                              <PostPhoto src={item.photoUrl} alt={item.petName} />
+                              <PostPhoto src={item.photoUrl} alt={item.petName} petType={item.petType} />
                               <strong>{item.petName}</strong>
                               <p>{item.story}</p>
                               <div className="meta-line">
@@ -1421,7 +1450,14 @@ function App() {
                             <img
                               src={item.photoUrl}
                               alt={item.petName}
-                              onError={() => setBrokenAdoptionImages((current) => ({ ...current, [item.id]: true }))}
+                              onError={(event) => {
+                                const fallbackUrl = fallbackPetPhotos[item.petType] ?? fallbackPetPhotos.Other;
+                                if (event.currentTarget.src !== fallbackUrl) {
+                                  event.currentTarget.src = fallbackUrl;
+                                } else {
+                                  setBrokenAdoptionImages((current) => ({ ...current, [item.id]: true }));
+                                }
+                              }}
                             />
                           )}
                           <div className="pet-card-body">
@@ -1461,7 +1497,7 @@ function App() {
                         {pendingLostPets.length > 0 ? (
                           pendingLostPets.map((item) => (
                             <article key={item.id} className="list-card">
-                              <PostPhoto src={item.photoUrl} alt={item.petName} />
+                              <PostPhoto src={item.photoUrl} alt={item.petName} petType={item.petType} />
                               <strong>{item.petName}</strong>
                               <p>{item.description}</p>
                               <div className="meta-line">
@@ -1494,7 +1530,7 @@ function App() {
                         {pendingFoundPets.length > 0 ? (
                           pendingFoundPets.map((item) => (
                             <article key={item.id} className="list-card">
-                              <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} />
+                              <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} petType={item.petType} />
                               <strong>{item.petType}</strong>
                               <p>{item.description}</p>
                               <div className="meta-line">
@@ -1526,7 +1562,7 @@ function App() {
                         {lostPets.length > 0 ? (
                           lostPets.map((item) => (
                             <article key={item.id} className="list-card">
-                              <PostPhoto src={item.photoUrl} alt={item.petName} />
+                              <PostPhoto src={item.photoUrl} alt={item.petName} petType={item.petType} />
                               <strong>{item.petName}</strong>
                               <p>{item.description}</p>
                               <div className="meta-line">
@@ -1554,7 +1590,7 @@ function App() {
                         {foundPets.length > 0 ? (
                           foundPets.map((item) => (
                             <article key={item.id} className="list-card">
-                              <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} />
+                              <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} petType={item.petType} />
                               <strong>{item.petType}</strong>
                               <p>{item.description}</p>
                               <div className="meta-line">
@@ -1585,7 +1621,7 @@ function App() {
                           {myLostPets.length > 0 ? (
                             myLostPets.map((item) => (
                               <article key={item.id} className="list-card">
-                                <PostPhoto src={item.photoUrl} alt={item.petName} />
+                                <PostPhoto src={item.photoUrl} alt={item.petName} petType={item.petType} />
                                 <strong>{item.petName}</strong>
                                 <p>{item.description}</p>
                                 <div className="meta-line">
@@ -1608,7 +1644,7 @@ function App() {
                           {myFoundPets.length > 0 ? (
                             myFoundPets.map((item) => (
                               <article key={item.id} className="list-card">
-                                <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} />
+                                <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} petType={item.petType} />
                                 <strong>{item.petType}</strong>
                                 <p>{item.description}</p>
                                 <div className="meta-line">
@@ -1634,7 +1670,7 @@ function App() {
                           {communityLostPets.length > 0 ? (
                             communityLostPets.map((item) => (
                               <article key={item.id} className="list-card">
-                                <PostPhoto src={item.photoUrl} alt={item.petName} />
+                                <PostPhoto src={item.photoUrl} alt={item.petName} petType={item.petType} />
                                 <strong>{item.petName}</strong>
                                 <p>{item.description}</p>
                                 <div className="meta-line">
@@ -1658,7 +1694,7 @@ function App() {
                           {communityFoundPets.length > 0 ? (
                             communityFoundPets.map((item) => (
                               <article key={item.id} className="list-card">
-                                <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} />
+                                <PostPhoto src={item.photoUrl} alt={`Found ${item.petType}`} petType={item.petType} />
                                 <strong>{item.petType}</strong>
                                 <p>{item.description}</p>
                                 <div className="meta-line">
@@ -1890,20 +1926,31 @@ function App() {
                         {chatConversations.length > 0 ? (
                           <div className="chat-vet-list">
                             {chatConversations.map((conversation) => (
-                              <button
+                              <div
                                 key={conversation.id}
-                                type="button"
-                                className={selectedConversationId === conversation.id ? "active" : ""}
-                                onClick={() => setSelectedConversationId(conversation.id)}
+                                className={selectedConversationId === conversation.id ? "chat-conversation-row active" : "chat-conversation-row"}
                               >
-                                <div className="chat-conversation-head">
-                                  <span>{conversation.counterpartName}</span>
-                                  {conversation.unreadIncomingCount > 0 ? (
-                                    <strong className="chat-unread-pill">{conversation.unreadIncomingCount}</strong>
-                                  ) : null}
-                                </div>
-                                <small>{conversation.lastMessage || "No messages yet."}</small>
-                              </button>
+                                <button
+                                  type="button"
+                                  className="chat-conversation-open"
+                                  onClick={() => setSelectedConversationId(conversation.id)}
+                                >
+                                  <div className="chat-conversation-head">
+                                    <span>{conversation.counterpartName}</span>
+                                    {conversation.unreadIncomingCount > 0 ? (
+                                      <strong className="chat-unread-pill">{conversation.unreadIncomingCount}</strong>
+                                    ) : null}
+                                  </div>
+                                  <small>{conversation.lastMessage || "No messages yet."}</small>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="chat-delete-button"
+                                  onClick={() => handleDeleteChatConversation(conversation.id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             ))}
                           </div>
                         ) : (
@@ -1916,10 +1963,19 @@ function App() {
                       {selectedConversation ? (
                         <>
                           <div className="chat-thread-head">
-                            <strong>{selectedConversation.counterpartName}</strong>
-                            <span>
-                              {selectedConversation.counterpartRole === "Vet" ? "Veterinarian" : "Pet Owner"}
-                            </span>
+                            <div>
+                              <strong>{selectedConversation.counterpartName}</strong>
+                              <span>
+                                {selectedConversation.counterpartRole === "Vet" ? "Veterinarian" : "Pet Owner"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="chat-delete-button"
+                              onClick={() => handleDeleteChatConversation(selectedConversation.id)}
+                            >
+                              Delete chat
+                            </button>
                           </div>
 
                           <div className="chat-messages-list">

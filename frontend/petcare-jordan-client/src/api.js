@@ -138,6 +138,11 @@ export const api = {
       headers: buildHeaders({ "Content-Type": "application/json" }, token),
       body: JSON.stringify({ message })
     }),
+  deleteChatConversation: (conversationId, token) =>
+    request(`/chat/conversations/${conversationId}`, {
+      method: "DELETE",
+      headers: buildHeaders({}, token)
+    }),
   getUpcomingVaccines: (token) =>
     request("/medical/upcoming-vaccines", {
       headers: buildHeaders({}, token)

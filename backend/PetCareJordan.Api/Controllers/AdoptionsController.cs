@@ -5,12 +5,13 @@ using Microsoft.EntityFrameworkCore;
 using PetCareJordan.Api.Data;
 using PetCareJordan.Api.Dtos;
 using PetCareJordan.Api.Models;
+using PetCareJordan.Api.Services;
 
 namespace PetCareJordan.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AdoptionsController(PetCareJordanContext context) : ControllerBase
+public class AdoptionsController(PetCareJordanContext context, IWebHostEnvironment environment) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AdoptionListingDto>>> GetAdoptionListings()
@@ -181,7 +182,7 @@ public class AdoptionsController(PetCareJordanContext context) : ControllerBase
         return CreatedAtAction(nameof(GetAdoptionListings), ToDto(listing, pet));
     }
 
-    private static AdoptionListingDto ToDto(AdoptionListing listing, Pet pet) =>
+    private AdoptionListingDto ToDto(AdoptionListing listing, Pet pet) =>
         new(
             listing.Id,
             pet.Id,
@@ -189,7 +190,7 @@ public class AdoptionsController(PetCareJordanContext context) : ControllerBase
             pet.Type,
             pet.Breed,
             pet.WeightKg,
-            pet.PhotoUrl,
+            PhotoUrlResolver.Resolve(pet.PhotoUrl, pet.Type, pet.Breed, environment),
             pet.City,
             listing.Story,
             listing.ContactMethod,

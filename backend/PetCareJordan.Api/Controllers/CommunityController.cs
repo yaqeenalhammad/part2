@@ -5,12 +5,13 @@ using Microsoft.EntityFrameworkCore;
 using PetCareJordan.Api.Data;
 using PetCareJordan.Api.Dtos;
 using PetCareJordan.Api.Models;
+using PetCareJordan.Api.Services;
 
 namespace PetCareJordan.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class CommunityController(PetCareJordanContext context) : ControllerBase
+public class CommunityController(PetCareJordanContext context, IWebHostEnvironment environment) : ControllerBase
 {
     private static readonly HashSet<string> AllowedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -42,7 +43,7 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
                 report.LastSeenPlace,
                 report.LastSeenDateUtc,
                 report.RewardAmount,
-                report.PhotoUrl,
+                PhotoUrlResolver.Resolve(report.PhotoUrl, report.PetType, report.Description, environment),
                 report.ContactName,
                 report.ContactPhone,
                 report.Status,
@@ -91,7 +92,7 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
                 report.Description,
                 report.FoundPlace,
                 report.FoundDateUtc,
-                report.PhotoUrl,
+                PhotoUrlResolver.Resolve(report.PhotoUrl, report.PetType, report.Description, environment),
                 report.ContactName,
                 report.ContactPhone,
                 report.Status,
@@ -141,7 +142,7 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
                 report.LastSeenPlace,
                 report.LastSeenDateUtc,
                 report.RewardAmount,
-                report.PhotoUrl,
+                PhotoUrlResolver.Resolve(report.PhotoUrl, report.PetType, report.Description, environment),
                 report.ContactName,
                 report.ContactPhone,
                 report.Status,
@@ -158,7 +159,7 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
                 report.Description,
                 report.FoundPlace,
                 report.FoundDateUtc,
-                report.PhotoUrl,
+                PhotoUrlResolver.Resolve(report.PhotoUrl, report.PetType, report.Description, environment),
                 report.ContactName,
                 report.ContactPhone,
                 report.Status,
@@ -191,7 +192,7 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
                 report.LastSeenPlace,
                 report.LastSeenDateUtc,
                 report.RewardAmount,
-                report.PhotoUrl,
+                PhotoUrlResolver.Resolve(report.PhotoUrl, report.PetType, report.Description, environment),
                 report.ContactName,
                 report.ContactPhone,
                 report.Status,
@@ -208,7 +209,7 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
                 report.Description,
                 report.FoundPlace,
                 report.FoundDateUtc,
-                report.PhotoUrl,
+                PhotoUrlResolver.Resolve(report.PhotoUrl, report.PetType, report.Description, environment),
                 report.ContactName,
                 report.ContactPhone,
                 report.Status,
@@ -362,7 +363,7 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
         return Ok(notifications);
     }
 
-    private static LostPetReportDto ToLostDto(LostPetReport report) =>
+    private LostPetReportDto ToLostDto(LostPetReport report) =>
         new(
             report.Id,
             report.PetName,
@@ -372,21 +373,21 @@ public class CommunityController(PetCareJordanContext context) : ControllerBase
             report.LastSeenPlace,
             report.LastSeenDateUtc,
             report.RewardAmount,
-            report.PhotoUrl,
+            PhotoUrlResolver.Resolve(report.PhotoUrl, report.PetType, report.Description, environment),
             report.ContactName,
             report.ContactPhone,
             report.Status,
             report.ReporterId,
             report.Reporter?.FullName);
 
-    private static FoundPetReportDto ToFoundDto(FoundPetReport report) =>
+    private FoundPetReportDto ToFoundDto(FoundPetReport report) =>
         new(
             report.Id,
             report.PetType,
             report.Description,
             report.FoundPlace,
             report.FoundDateUtc,
-            report.PhotoUrl,
+            PhotoUrlResolver.Resolve(report.PhotoUrl, report.PetType, report.Description, environment),
             report.ContactName,
             report.ContactPhone,
             report.Status,

@@ -331,19 +331,47 @@ button {
   gap: 8px;
 }
 
-.chat-vet-list button {
+.chat-vet-list button,
+.chat-conversation-row {
   border: 1px solid #dbeafe;
   background: #f8fafc;
   border-radius: 12px;
+}
+
+.chat-vet-list button {
   padding: 10px 12px;
   text-align: left;
   display: grid;
   gap: 2px;
 }
 
-.chat-vet-list button.active {
+.chat-vet-list button.active,
+.chat-conversation-row.active {
   border-color: #93c5fd;
   background: #eff6ff;
+}
+
+.chat-conversation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 8px;
+  align-items: center;
+}
+
+.chat-vet-list .chat-conversation-open {
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+}
+
+.chat-vet-list .chat-delete-button,
+.chat-delete-button {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #be123c;
+  font-weight: 800;
+  text-align: center;
 }
 
 .chat-vet-list small {
@@ -385,6 +413,11 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+}
+
+.chat-thread-head div {
+  display: grid;
+  gap: 2px;
 }
 
 .chat-thread-head span {
