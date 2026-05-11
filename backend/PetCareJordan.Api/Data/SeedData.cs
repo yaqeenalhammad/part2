@@ -6,59 +6,62 @@ namespace PetCareJordan.Api.Data;
 
 public static class SeedData
 {
+    private static string PexelsPhoto(int id) =>
+        $"https://images.pexels.com/photos/{id}/pexels-photo-{id}.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop";
+
     private static readonly IReadOnlyDictionary<string, string> SeedPetPhotoUrls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["PCJ-1001"] = "https://loremflickr.com/900/650/persian,cat?lock=1001",
-        ["PCJ-1002"] = "https://loremflickr.com/900/650/goldenretriever,dog?lock=1002",
-        ["PCJ-1003"] = "https://loremflickr.com/900/650/cockatiel,bird?lock=1003",
-        ["PCJ-1004"] = "https://loremflickr.com/900/650/lop,rabbit?lock=1004",
-        ["PCJ-1005"] = "https://loremflickr.com/900/650/tabby,cat?lock=1005",
-        ["PCJ-1006"] = "https://loremflickr.com/900/650/germanshepherd,dog?lock=1006",
-        ["PCJ-1007"] = "https://loremflickr.com/900/650/siamese,cat?lock=1007",
-        ["PCJ-1008"] = "https://loremflickr.com/900/650/lovebird,bird?lock=1008",
-        ["PCJ-1009"] = "https://loremflickr.com/900/650/husky,dog?lock=1009",
-        ["PCJ-1010"] = "https://loremflickr.com/900/650/brown,rabbit?lock=1010",
-        ["PCJ-1011"] = "https://loremflickr.com/900/650/parrot,bird?lock=1011",
-        ["PCJ-1012"] = "https://loremflickr.com/900/650/scottishfold,cat?lock=1012",
-        ["PCJ-1013"] = "https://loremflickr.com/900/650/rescue,dog?lock=1013",
-        ["PCJ-1014"] = "https://loremflickr.com/900/650/hamster?lock=1014",
-        ["PCJ-1015"] = "https://loremflickr.com/900/650/orange,cat?lock=1015",
-        ["PCJ-1016"] = "https://loremflickr.com/900/650/canary,bird?lock=1016",
-        ["PCJ-1017"] = "https://loremflickr.com/900/650/boxer,dog?lock=1017",
-        ["PCJ-1018"] = "https://loremflickr.com/900/650/lionhead,rabbit?lock=1018",
-        ["PCJ-1019"] = "https://loremflickr.com/900/650/shorthair,cat?lock=1019",
-        ["PCJ-1020"] = "https://loremflickr.com/900/650/labrador,dog?lock=1020",
-        ["PCJ-1021"] = "https://loremflickr.com/900/650/white,persian,cat?lock=1021",
-        ["PCJ-1022"] = "https://loremflickr.com/900/650/budgie,bird?lock=1022",
-        ["PCJ-1023"] = "https://loremflickr.com/900/650/dutch,rabbit?lock=1023",
-        ["PCJ-1024"] = "https://loremflickr.com/900/650/turtle?lock=1024",
-        ["PCJ-1025"] = "https://loremflickr.com/900/650/hamster?lock=1025",
-        ["PCJ-1026"] = "https://loremflickr.com/900/650/turtle?lock=1026",
-        ["PCJ-1027"] = "https://loremflickr.com/900/650/white,rabbit?lock=1027",
-        ["PCJ-1028"] = "https://loremflickr.com/900/650/parakeet,bird?lock=1028",
-        ["PCJ-1029"] = "https://loremflickr.com/900/650/poodle,dog?lock=1029",
-        ["PCJ-1030"] = "https://loremflickr.com/900/650/calico,cat?lock=1030",
-        ["PCJ-1031"] = "https://loremflickr.com/900/650/turtle?lock=1031",
-        ["PCJ-1032"] = "https://loremflickr.com/900/650/dalmatian,dog?lock=1032",
-        ["PCJ-1033"] = "https://loremflickr.com/900/650/parrot,bird?lock=1033",
-        ["PCJ-1034"] = "https://loremflickr.com/900/650/black,rabbit?lock=1034",
-        ["PCJ-1035"] = "https://loremflickr.com/900/650/hamster?lock=1035",
-        ["PCJ-1036"] = "https://loremflickr.com/900/650/labrador,puppy?lock=1036",
-        ["PCJ-1037"] = "https://loremflickr.com/900/650/ginger,cat?lock=1037",
-        ["PCJ-1038"] = "https://loremflickr.com/900/650/beagle,dog?lock=1038"
+        ["PCJ-1001"] = PexelsPhoto(14723479),
+        ["PCJ-1002"] = PexelsPhoto(1108099),
+        ["PCJ-1003"] = PexelsPhoto(10502515),
+        ["PCJ-1004"] = PexelsPhoto(3730206),
+        ["PCJ-1005"] = PexelsPhoto(15116820),
+        ["PCJ-1006"] = PexelsPhoto(1805164),
+        ["PCJ-1007"] = PexelsPhoto(982314),
+        ["PCJ-1008"] = PexelsPhoto(7154572),
+        ["PCJ-1009"] = PexelsPhoto(2253275),
+        ["PCJ-1010"] = PexelsPhoto(27075808),
+        ["PCJ-1011"] = PexelsPhoto(7154558),
+        ["PCJ-1012"] = PexelsPhoto(7343599),
+        ["PCJ-1013"] = PexelsPhoto(458799),
+        ["PCJ-1014"] = PexelsPhoto(4588050),
+        ["PCJ-1015"] = PexelsPhoto(3163611),
+        ["PCJ-1016"] = PexelsPhoto(11961251),
+        ["PCJ-1017"] = PexelsPhoto(733416),
+        ["PCJ-1018"] = PexelsPhoto(20163150),
+        ["PCJ-1019"] = PexelsPhoto(17516766),
+        ["PCJ-1020"] = PexelsPhoto(1851164),
+        ["PCJ-1021"] = PexelsPhoto(2625782),
+        ["PCJ-1022"] = PexelsPhoto(10502515),
+        ["PCJ-1023"] = PexelsPhoto(20178220),
+        ["PCJ-1024"] = PexelsPhoto(17772831),
+        ["PCJ-1025"] = PexelsPhoto(4588050),
+        ["PCJ-1026"] = PexelsPhoto(18497947),
+        ["PCJ-1027"] = PexelsPhoto(3730206),
+        ["PCJ-1028"] = PexelsPhoto(7154572),
+        ["PCJ-1029"] = PexelsPhoto(5731866),
+        ["PCJ-1030"] = PexelsPhoto(129965),
+        ["PCJ-1031"] = PexelsPhoto(17772831),
+        ["PCJ-1032"] = PexelsPhoto(1108099),
+        ["PCJ-1033"] = PexelsPhoto(7154558),
+        ["PCJ-1034"] = PexelsPhoto(27075808),
+        ["PCJ-1035"] = PexelsPhoto(4588050),
+        ["PCJ-1036"] = PexelsPhoto(1851164),
+        ["PCJ-1037"] = PexelsPhoto(3998547),
+        ["PCJ-1038"] = PexelsPhoto(2253275)
     };
 
     private static readonly IReadOnlyDictionary<string, string> SeedLostReportPhotoUrls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["Shadow"] = "https://loremflickr.com/900/650/black,cat?lock=2001",
-        ["Biscuit"] = "https://loremflickr.com/900/650/small,brown,dog?lock=2002",
-        ["Sunny"] = "https://loremflickr.com/900/650/yellow,canary,bird?lock=2003"
+        ["Shadow"] = PexelsPhoto(3998547),
+        ["Biscuit"] = PexelsPhoto(458799),
+        ["Sunny"] = PexelsPhoto(11961251)
     };
 
     private static readonly IReadOnlyDictionary<string, string> SeedFoundReportPhotoUrls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["Grey cat found with no visible injury."] = "https://loremflickr.com/900/650/grey,cat?lock=3001",
-        ["White mixed-breed dog found near market."] = "https://loremflickr.com/900/650/white,dog?lock=3002"
+        ["Grey cat found with no visible injury."] = PexelsPhoto(982314),
+        ["White mixed-breed dog found near market."] = PexelsPhoto(1805164)
     };
 
     private static readonly IReadOnlyDictionary<string, string> SeedPetLocationDetails = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
