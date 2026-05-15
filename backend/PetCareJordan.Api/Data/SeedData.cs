@@ -727,9 +727,11 @@ public static class SeedData
 
     private static async Task EnsureCommunityReportReportersAsync(PetCareJordanContext context)
     {
-        var usersByPhone = await context.Users
+        var usersByPhone = (await context.Users
             .Where(user => !string.IsNullOrWhiteSpace(user.PhoneNumber))
-            .ToDictionaryAsync(user => user.PhoneNumber, StringComparer.OrdinalIgnoreCase);
+            .ToListAsync())
+            .GroupBy(user => user.PhoneNumber, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
         var hasChanges = false;
 

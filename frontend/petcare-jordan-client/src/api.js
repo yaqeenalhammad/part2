@@ -1,4 +1,6 @@
-const API_BASE_URL = "http://localhost:5031/api";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  `${window.location.protocol}//${window.location.hostname}:5031/api`;
 
 function buildHeaders(headers = {}, token) {
   const merged = { ...headers };
