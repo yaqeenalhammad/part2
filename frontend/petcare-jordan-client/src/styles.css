@@ -295,6 +295,30 @@ button {
   transform: translateY(-1px);
 }
 
+.card-primary-action {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 11px 14px;
+  background: #0f766e;
+  color: #fff;
+  font-weight: 800;
+  margin-top: 12px;
+  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.16);
+}
+
+.card-primary-action:hover {
+  background: #115e59;
+  transform: translateY(-1px);
+}
+
+.owner-note {
+  display: block;
+  margin-top: 12px;
+  color: #64748b;
+  font-weight: 700;
+}
+
 .auth-form {
   display: grid;
   gap: 10px;

@@ -122,11 +122,11 @@ export const api = {
     request("/chat/conversations", {
       headers: buildHeaders({}, token)
     }),
-  createChatConversation: (vetId, token) =>
+  createChatConversation: (participantId, token, openingMessage = "") =>
     request("/chat/conversations", {
       method: "POST",
       headers: buildHeaders({ "Content-Type": "application/json" }, token),
-      body: JSON.stringify({ vetId })
+      body: JSON.stringify({ participantId, openingMessage })
     }),
   getChatMessages: (conversationId, token) =>
     request(`/chat/conversations/${conversationId}/messages`, {

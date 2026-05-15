@@ -50,11 +50,11 @@ const emptyRegisterForms = {
 
 const petTypeOptions = ["Cat", "Dog", "Bird", "Rabbit", "Other"];
 const fallbackPetPhotos = {
-  Cat: "https://images.pexels.com/photos/15116820/pexels-photo-15116820.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop",
-  Dog: "https://images.pexels.com/photos/458799/pexels-photo-458799.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop",
-  Bird: "https://images.pexels.com/photos/11961251/pexels-photo-11961251.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop",
-  Rabbit: "https://images.pexels.com/photos/3730206/pexels-photo-3730206.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop",
-  Other: "https://images.pexels.com/photos/18497947/pexels-photo-18497947.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop"
+  Cat: "https://loremflickr.com/900/650/cat?lock=9001",
+  Dog: "https://loremflickr.com/900/650/dog?lock=9002",
+  Bird: "https://loremflickr.com/900/650/bird?lock=9003",
+  Rabbit: "https://loremflickr.com/900/650/rabbit?lock=9004",
+  Other: "https://loremflickr.com/900/650/pet?lock=9007"
 };
 const jordanTimeFormatter = new Intl.DateTimeFormat("en-JO", {
   dateStyle: "medium",
@@ -752,7 +752,7 @@ function App() {
   const visibleDemoRoles = isRoleLocked ? [selectedRole] : roleOrder;
   const selectedConversation = chatConversations.find((item) => item.id === selectedConversationId) ?? null;
   const vetsWithoutConversation = chatVets.filter(
-    (vet) => !chatConversations.some((conversation) => conversation.vetId === vet.id)
+    (vet) => !chatConversations.some((conversation) => conversation.counterpartId === vet.id)
   );
   const isChatRole = currentUser?.role === "User" || currentUser?.role === "Vet";
   const canPublishCommunityPost = currentUser?.role === "User" || currentUser?.role === "Vet";
@@ -1051,19 +1051,28 @@ function App() {
   }
 
   async function handleStartChatWithVet(vetId) {
+    await handleStartChatWithUser(vetId, "Chat opened successfully.");
+  }
+
+  async function handleStartChatWithUser(participantId, successMessage, openingMessage = "") {
     if (!currentUser?.token) {
       setError("Please sign in first.");
       return;
     }
 
+    if (!participantId || participantId === currentUser.id) {
+      setError("This post belongs to your account.");
+      return;
+    }
+
     try {
-      const conversation = await api.createChatConversation(vetId, currentUser.token);
+      const conversation = await api.createChatConversation(participantId, currentUser.token, openingMessage);
       await refreshChatLists(conversation.id);
-      setChatNotice("Chat opened successfully.");
+      setChatNotice(successMessage);
       setError("");
       setActiveTab("chat");
     } catch (requestError) {
-      setError(requestError.message || "Could not start chat with this vet.");
+      setError(requestError.message || "Could not start this chat.");
     }
   }
 
@@ -1102,7 +1111,7 @@ function App() {
       await api.deleteChatConversation(conversationId, currentUser.token);
       setChatMessages([]);
       setChatMessageDraft("");
-      setChatNotice("Chat deleted. You can start a new one with the same vet anytime.");
+      setChatNotice("Chat deleted. You can start a new one with the same account anytime.");
       await refreshChatLists();
       setError("");
     } catch (requestError) {
@@ -1476,6 +1485,23 @@ function App() {
                             <div className="meta-line">
                               <span>{item.contactMethod}: {item.contactDetails}</span>
                             </div>
+                            {item.ownerId !== currentUser.id ? (
+                              <button
+                                type="button"
+                                className="card-primary-action"
+                                onClick={() =>
+                                  handleStartChatWithUser(
+                                    item.ownerId,
+                                    `Adoption chat opened with ${item.ownerName}.`,
+                                    `Hi ${item.ownerName}, I would like to adopt ${item.petName}.`
+                                  )
+                                }
+                              >
+                                Adopt {item.petName}
+                              </button>
+                            ) : (
+                              <span className="owner-note">This is your adoption post.</span>
+                            )}
                           </div>
                         </article>
                       ))
@@ -1681,6 +1707,21 @@ function App() {
                                   <span>Reward: {item.rewardAmount ? `${item.rewardAmount} JOD` : "No reward listed"}</span>
                                   <span>{item.contactPhone}</span>
                                 </div>
+                                {item.reporterId ? (
+                                  <button
+                                    type="button"
+                                    className="card-primary-action"
+                                    onClick={() =>
+                                      handleStartChatWithUser(
+                                        item.reporterId,
+                                        `Message opened with ${item.contactName}.`,
+                                        `Hi ${item.contactName}, I saw your lost pet post for ${item.petName}. I may have information that can help.`
+                                      )
+                                    }
+                                  >
+                                    Message Owner
+                                  </button>
+                                ) : null}
                               </article>
                             ))
                           ) : (
@@ -1705,6 +1746,21 @@ function App() {
                                   <span>Contact: {item.contactName}</span>
                                   <span>{item.contactPhone}</span>
                                 </div>
+                                {item.reporterId ? (
+                                  <button
+                                    type="button"
+                                    className="card-primary-action"
+                                    onClick={() =>
+                                      handleStartChatWithUser(
+                                        item.reporterId,
+                                        `Message opened with ${item.contactName}.`,
+                                        `Hi ${item.contactName}, I saw your found ${item.petType} report and want to check if it matches my pet.`
+                                      )
+                                    }
+                                  >
+                                    Message Finder
+                                  </button>
+                                ) : null}
                               </article>
                             ))
                           ) : (

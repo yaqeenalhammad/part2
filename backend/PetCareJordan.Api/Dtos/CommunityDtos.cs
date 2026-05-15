@@ -14,6 +14,8 @@ public record AdoptionListingDto(
     string Story,
     string ContactMethod,
     string ContactDetails,
+    int OwnerId,
+    string OwnerName,
     AdoptionStatus Status,
     DateTime PostedAtUtc);
 

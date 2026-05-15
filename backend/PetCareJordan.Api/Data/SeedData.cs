@@ -6,62 +6,62 @@ namespace PetCareJordan.Api.Data;
 
 public static class SeedData
 {
-    private static string PexelsPhoto(int id) =>
-        $"https://images.pexels.com/photos/{id}/pexels-photo-{id}.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop";
+    private static string TaggedPhoto(string tag, int lockId) =>
+        $"https://loremflickr.com/900/650/{tag}?lock={lockId}";
 
     private static readonly IReadOnlyDictionary<string, string> SeedPetPhotoUrls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["PCJ-1001"] = PexelsPhoto(14723479),
-        ["PCJ-1002"] = PexelsPhoto(1108099),
-        ["PCJ-1003"] = PexelsPhoto(10502515),
-        ["PCJ-1004"] = PexelsPhoto(3730206),
-        ["PCJ-1005"] = PexelsPhoto(15116820),
-        ["PCJ-1006"] = PexelsPhoto(1805164),
-        ["PCJ-1007"] = PexelsPhoto(982314),
-        ["PCJ-1008"] = PexelsPhoto(7154572),
-        ["PCJ-1009"] = PexelsPhoto(2253275),
-        ["PCJ-1010"] = PexelsPhoto(27075808),
-        ["PCJ-1011"] = PexelsPhoto(7154558),
-        ["PCJ-1012"] = PexelsPhoto(7343599),
-        ["PCJ-1013"] = PexelsPhoto(458799),
-        ["PCJ-1014"] = PexelsPhoto(4588050),
-        ["PCJ-1015"] = PexelsPhoto(3163611),
-        ["PCJ-1016"] = PexelsPhoto(11961251),
-        ["PCJ-1017"] = PexelsPhoto(733416),
-        ["PCJ-1018"] = PexelsPhoto(20163150),
-        ["PCJ-1019"] = PexelsPhoto(17516766),
-        ["PCJ-1020"] = PexelsPhoto(1851164),
-        ["PCJ-1021"] = PexelsPhoto(2625782),
-        ["PCJ-1022"] = PexelsPhoto(10502515),
-        ["PCJ-1023"] = PexelsPhoto(20178220),
-        ["PCJ-1024"] = PexelsPhoto(17772831),
-        ["PCJ-1025"] = PexelsPhoto(4588050),
-        ["PCJ-1026"] = PexelsPhoto(18497947),
-        ["PCJ-1027"] = PexelsPhoto(3730206),
-        ["PCJ-1028"] = PexelsPhoto(7154572),
-        ["PCJ-1029"] = PexelsPhoto(5731866),
-        ["PCJ-1030"] = PexelsPhoto(129965),
-        ["PCJ-1031"] = PexelsPhoto(17772831),
-        ["PCJ-1032"] = PexelsPhoto(1108099),
-        ["PCJ-1033"] = PexelsPhoto(7154558),
-        ["PCJ-1034"] = PexelsPhoto(27075808),
-        ["PCJ-1035"] = PexelsPhoto(4588050),
-        ["PCJ-1036"] = PexelsPhoto(1851164),
-        ["PCJ-1037"] = PexelsPhoto(3998547),
-        ["PCJ-1038"] = PexelsPhoto(2253275)
+        ["PCJ-1001"] = TaggedPhoto("cat,persian", 1001),
+        ["PCJ-1002"] = TaggedPhoto("dog,golden-retriever", 1002),
+        ["PCJ-1003"] = TaggedPhoto("cockatiel,bird", 1003),
+        ["PCJ-1004"] = TaggedPhoto("rabbit,holland-lop", 1004),
+        ["PCJ-1005"] = TaggedPhoto("cat,tabby", 1005),
+        ["PCJ-1006"] = TaggedPhoto("dog,german-shepherd", 1006),
+        ["PCJ-1007"] = TaggedPhoto("cat,siamese", 1007),
+        ["PCJ-1008"] = TaggedPhoto("lovebird,bird", 1008),
+        ["PCJ-1009"] = TaggedPhoto("dog,husky", 1009),
+        ["PCJ-1010"] = TaggedPhoto("rabbit,mini-rex", 1010),
+        ["PCJ-1011"] = TaggedPhoto("parrot,bird", 1011),
+        ["PCJ-1012"] = TaggedPhoto("cat,scottish-fold", 1012),
+        ["PCJ-1013"] = TaggedPhoto("dog,mixed-breed", 1013),
+        ["PCJ-1014"] = TaggedPhoto("hamster", 1014),
+        ["PCJ-1015"] = TaggedPhoto("cat,orange-tabby", 1015),
+        ["PCJ-1016"] = TaggedPhoto("canary,bird", 1016),
+        ["PCJ-1017"] = TaggedPhoto("dog,boxer", 1017),
+        ["PCJ-1018"] = TaggedPhoto("rabbit,lionhead", 1018),
+        ["PCJ-1019"] = TaggedPhoto("cat,domestic-shorthair", 1019),
+        ["PCJ-1020"] = TaggedPhoto("dog,labrador", 1020),
+        ["PCJ-1021"] = TaggedPhoto("cat,persian", 1021),
+        ["PCJ-1022"] = TaggedPhoto("budgie,bird", 1022),
+        ["PCJ-1023"] = TaggedPhoto("rabbit,dutch-rabbit", 1023),
+        ["PCJ-1024"] = TaggedPhoto("turtle", 1024),
+        ["PCJ-1025"] = TaggedPhoto("hamster", 1025),
+        ["PCJ-1026"] = TaggedPhoto("cat,maine-coon", 1026),
+        ["PCJ-1027"] = TaggedPhoto("rabbit,white-rabbit", 1027),
+        ["PCJ-1028"] = TaggedPhoto("bird,finch", 1028),
+        ["PCJ-1029"] = TaggedPhoto("dog,poodle", 1029),
+        ["PCJ-1030"] = TaggedPhoto("cat,calico", 1030),
+        ["PCJ-1031"] = TaggedPhoto("turtle", 1031),
+        ["PCJ-1032"] = TaggedPhoto("dog,dalmatian", 1032),
+        ["PCJ-1033"] = TaggedPhoto("parrot,bird", 1033),
+        ["PCJ-1034"] = TaggedPhoto("rabbit,black-rabbit", 1034),
+        ["PCJ-1035"] = TaggedPhoto("hamster", 1035),
+        ["PCJ-1036"] = TaggedPhoto("dog,labrador-puppy", 1036),
+        ["PCJ-1037"] = TaggedPhoto("cat,ginger-cat", 1037),
+        ["PCJ-1038"] = TaggedPhoto("dog,beagle", 1038)
     };
 
     private static readonly IReadOnlyDictionary<string, string> SeedLostReportPhotoUrls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["Shadow"] = PexelsPhoto(3998547),
-        ["Biscuit"] = PexelsPhoto(458799),
-        ["Sunny"] = PexelsPhoto(11961251)
+        ["Shadow"] = TaggedPhoto("black-cat", 2001),
+        ["Biscuit"] = TaggedPhoto("small-brown-dog", 2002),
+        ["Sunny"] = TaggedPhoto("yellow-bird", 2003)
     };
 
     private static readonly IReadOnlyDictionary<string, string> SeedFoundReportPhotoUrls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["Grey cat found with no visible injury."] = PexelsPhoto(982314),
-        ["White mixed-breed dog found near market."] = PexelsPhoto(1805164)
+        ["Grey cat found with no visible injury."] = TaggedPhoto("grey-cat", 3001),
+        ["White mixed-breed dog found near market."] = TaggedPhoto("white-dog", 3002)
     };
 
     private static readonly IReadOnlyDictionary<string, string> SeedPetLocationDetails = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -118,6 +118,7 @@ public static class SeedData
             await NormalizeExistingUserEmailsAsync(context);
             await NormalizeExistingEnglishTextAsync(context);
             await EnsureRequiredDemoAccountsAsync(context, passwordService);
+            await EnsureCommunityReportReportersAsync(context);
             await EnsureRealisticSeedPhotosAsync(context);
             await EnsureExpandedDemoPetsAsync(context);
             await RemoveDemoChatArtifactsAsync(context);
@@ -191,15 +192,15 @@ public static class SeedData
 
         var lostReports = new List<LostPetReport>
         {
-            new() { PetName = "Shadow", PetType = PetType.Cat, Description = "Black cat with green collar.", ApproximateAgeInMonths = 20, LastSeenPlace = "Jabal Amman near Rainbow Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-2), RewardAmount = 25, PhotoUrl = SeedLostReportPhotoUrls["Shadow"], ContactName = "Lina Khalil", ContactPhone = "0799001002", Status = ReportStatus.Active },
-            new() { PetName = "Biscuit", PetType = PetType.Dog, Description = "Small brown dog, very friendly.", ApproximateAgeInMonths = 14, LastSeenPlace = "Irbid University Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-1), RewardAmount = null, PhotoUrl = SeedLostReportPhotoUrls["Biscuit"], ContactName = "Ahmad Shannaq", ContactPhone = "0799001008", Status = ReportStatus.Active },
-            new() { PetName = "Sunny", PetType = PetType.Bird, Description = "Yellow canary escaped from balcony.", ApproximateAgeInMonths = 9, LastSeenPlace = "Madaba downtown", LastSeenDateUtc = DateTime.UtcNow.AddDays(-3), RewardAmount = 15, PhotoUrl = SeedLostReportPhotoUrls["Sunny"], ContactName = "Rama Azar", ContactPhone = "0799001009", Status = ReportStatus.Active }
+            new() { PetName = "Shadow", PetType = PetType.Cat, Description = "Black cat with green collar.", ApproximateAgeInMonths = 20, LastSeenPlace = "Jabal Amman near Rainbow Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-2), RewardAmount = 25, PhotoUrl = SeedLostReportPhotoUrls["Shadow"], ContactName = "Lina Khalil", ContactPhone = "0799001003", Status = ReportStatus.Active, ReporterId = userByEmail["lina@petcare.com"].Id },
+            new() { PetName = "Biscuit", PetType = PetType.Dog, Description = "Small brown dog, very friendly.", ApproximateAgeInMonths = 14, LastSeenPlace = "Irbid University Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-1), RewardAmount = null, PhotoUrl = SeedLostReportPhotoUrls["Biscuit"], ContactName = "Ahmad Shannaq", ContactPhone = "0799001008", Status = ReportStatus.Active, ReporterId = userByEmail["ahmad@petcare.com"].Id },
+            new() { PetName = "Sunny", PetType = PetType.Bird, Description = "Yellow canary escaped from balcony.", ApproximateAgeInMonths = 9, LastSeenPlace = "Madaba downtown", LastSeenDateUtc = DateTime.UtcNow.AddDays(-3), RewardAmount = 15, PhotoUrl = SeedLostReportPhotoUrls["Sunny"], ContactName = "Rama Azar", ContactPhone = "0799001009", Status = ReportStatus.Active, ReporterId = userByEmail["rama@petcare.com"].Id }
         };
 
         var foundReports = new List<FoundPetReport>
         {
-            new() { PetType = PetType.Cat, Description = "Grey cat found with no visible injury.", FoundPlace = "Abdoun, Amman", FoundDateUtc = DateTime.UtcNow.AddDays(-1), PhotoUrl = SeedFoundReportPhotoUrls["Grey cat found with no visible injury."], ContactName = "Dina Majali", ContactPhone = "0799001007", Status = ReportStatus.Active },
-            new() { PetType = PetType.Dog, Description = "White mixed-breed dog found near market.", FoundPlace = "Salt city center", FoundDateUtc = DateTime.UtcNow.AddDays(-2), PhotoUrl = SeedFoundReportPhotoUrls["White mixed-breed dog found near market."], ContactName = "Tareq Fares", ContactPhone = "0799001010", Status = ReportStatus.Active }
+            new() { PetType = PetType.Cat, Description = "Grey cat found with no visible injury.", FoundPlace = "Abdoun, Amman", FoundDateUtc = DateTime.UtcNow.AddDays(-1), PhotoUrl = SeedFoundReportPhotoUrls["Grey cat found with no visible injury."], ContactName = "Dina Majali", ContactPhone = "0799001007", Status = ReportStatus.Active, ReporterId = userByEmail["dina@petcare.com"].Id },
+            new() { PetType = PetType.Dog, Description = "White mixed-breed dog found near market.", FoundPlace = "Salt city center", FoundDateUtc = DateTime.UtcNow.AddDays(-2), PhotoUrl = SeedFoundReportPhotoUrls["White mixed-breed dog found near market."], ContactName = "Tareq Fares", ContactPhone = "0799001010", Status = ReportStatus.Active, ReporterId = userByEmail["tareq@petcare.com"].Id }
         };
 
         await context.AdoptionListings.AddRangeAsync(adoptionListings);
@@ -714,6 +715,40 @@ public static class SeedData
                 existing.Role = requiredUser.Role;
                 existing.PhoneNumber = requiredUser.PhoneNumber;
                 existing.City = requiredUser.City;
+                hasChanges = true;
+            }
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static async Task EnsureCommunityReportReportersAsync(PetCareJordanContext context)
+    {
+        var usersByPhone = await context.Users
+            .Where(user => !string.IsNullOrWhiteSpace(user.PhoneNumber))
+            .ToDictionaryAsync(user => user.PhoneNumber, StringComparer.OrdinalIgnoreCase);
+
+        var hasChanges = false;
+
+        var lostReports = await context.LostPetReports.ToListAsync();
+        foreach (var report in lostReports.Where(report => report.ReporterId is null))
+        {
+            if (usersByPhone.TryGetValue(report.ContactPhone, out var reporter))
+            {
+                report.ReporterId = reporter.Id;
+                hasChanges = true;
+            }
+        }
+
+        var foundReports = await context.FoundPetReports.ToListAsync();
+        foreach (var report in foundReports.Where(report => report.ReporterId is null))
+        {
+            if (usersByPhone.TryGetValue(report.ContactPhone, out var reporter))
+            {
+                report.ReporterId = reporter.Id;
                 hasChanges = true;
             }
         }

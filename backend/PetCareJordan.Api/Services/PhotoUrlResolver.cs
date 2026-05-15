@@ -4,8 +4,8 @@ namespace PetCareJordan.Api.Services;
 
 public static class PhotoUrlResolver
 {
-    private static string PexelsPhoto(int id) =>
-        $"https://images.pexels.com/photos/{id}/pexels-photo-{id}.jpeg?auto=compress&cs=tinysrgb&w=900&h=650&fit=crop";
+    private static string TaggedPhoto(string tag, int lockId) =>
+        $"https://loremflickr.com/900/650/{tag}?lock={lockId}";
 
     public static string Resolve(string? photoUrl, PetType petType, string? hint, IWebHostEnvironment environment)
     {
@@ -43,13 +43,13 @@ public static class PhotoUrlResolver
     private static string FallbackFor(PetType petType, string? hint) =>
         petType switch
         {
-            PetType.Cat => PexelsPhoto(15116820),
-            PetType.Dog => PexelsPhoto(458799),
-            PetType.Bird => PexelsPhoto(11961251),
-            PetType.Rabbit => PexelsPhoto(3730206),
-            PetType.Other when Contains(hint, "turtle") || Contains(hint, "slider") => PexelsPhoto(18497947),
-            PetType.Other when Contains(hint, "hamster") || Contains(hint, "syrian") => PexelsPhoto(4588050),
-            _ => PexelsPhoto(1108099)
+            PetType.Cat => TaggedPhoto("cat", 9001),
+            PetType.Dog => TaggedPhoto("dog", 9002),
+            PetType.Bird => TaggedPhoto("bird", 9003),
+            PetType.Rabbit => TaggedPhoto("rabbit", 9004),
+            PetType.Other when Contains(hint, "turtle") || Contains(hint, "slider") => TaggedPhoto("turtle", 9005),
+            PetType.Other when Contains(hint, "hamster") || Contains(hint, "syrian") => TaggedPhoto("hamster", 9006),
+            _ => TaggedPhoto("pet", 9007)
         };
 
     private static bool Contains(string? value, string text) =>

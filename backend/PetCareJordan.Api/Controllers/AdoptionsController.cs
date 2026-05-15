@@ -18,6 +18,7 @@ public class AdoptionsController(PetCareJordanContext context, IWebHostEnvironme
     {
         var listings = await context.AdoptionListings
             .Include(listing => listing.Pet)
+                .ThenInclude(pet => pet!.Owner)
             .Where(listing => listing.Status == AdoptionStatus.Available)
             .OrderByDescending(listing => listing.PostedAtUtc)
             .ToListAsync();
@@ -31,6 +32,7 @@ public class AdoptionsController(PetCareJordanContext context, IWebHostEnvironme
     {
         var listings = await context.AdoptionListings
             .Include(listing => listing.Pet)
+                .ThenInclude(pet => pet!.Owner)
             .OrderByDescending(listing => listing.PostedAtUtc)
             .ToListAsync();
 
@@ -111,6 +113,7 @@ public class AdoptionsController(PetCareJordanContext context, IWebHostEnvironme
     {
         var listing = await context.AdoptionListings
             .Include(item => item.Pet)
+                .ThenInclude(pet => pet!.Owner)
             .FirstOrDefaultAsync(item => item.Id == id);
         if (listing?.Pet is null)
         {
@@ -129,6 +132,7 @@ public class AdoptionsController(PetCareJordanContext context, IWebHostEnvironme
     {
         var listing = await context.AdoptionListings
             .Include(item => item.Pet)
+                .ThenInclude(pet => pet!.Owner)
             .FirstOrDefaultAsync(item => item.Id == id);
         if (listing?.Pet is null)
         {
@@ -195,6 +199,8 @@ public class AdoptionsController(PetCareJordanContext context, IWebHostEnvironme
             listing.Story,
             listing.ContactMethod,
             listing.ContactDetails,
+            pet.OwnerId,
+            pet.Owner?.FullName ?? "Pet Owner",
             listing.Status,
             listing.PostedAtUtc);
 

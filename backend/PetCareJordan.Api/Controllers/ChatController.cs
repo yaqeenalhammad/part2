@@ -67,7 +67,7 @@ public class ChatController(PetCareJordanContext context) : ControllerBase
     }
 
     [HttpPost("conversations")]
-    [Authorize(Roles = "User")]
+    [Authorize(Roles = "User,Vet")]
     public async Task<ActionResult<ChatConversationDto>> CreateOrOpenConversation(CreateConversationRequest request)
     {
         var currentUserId = GetCurrentUserId();
@@ -76,24 +76,35 @@ public class ChatController(PetCareJordanContext context) : ControllerBase
             return Unauthorized();
         }
 
-        var vet = await context.Users.FirstOrDefaultAsync(user => user.Id == request.VetId && user.Role == UserRole.Vet);
-        if (vet is null)
+        var participantId = request.ParticipantId ?? request.VetId;
+        if (participantId is null || participantId == currentUserId.Value)
         {
-            return BadRequest("Selected vet does not exist.");
+            return BadRequest("Choose another account to start a chat.");
         }
+
+        var participant = await context.Users.FirstOrDefaultAsync(user =>
+            user.Id == participantId.Value &&
+            (user.Role == UserRole.User || user.Role == UserRole.Vet));
+        if (participant is null)
+        {
+            return BadRequest("Selected account does not exist.");
+        }
+
+        var firstParticipantId = Math.Min(currentUserId.Value, participant.Id);
+        var secondParticipantId = Math.Max(currentUserId.Value, participant.Id);
 
         var conversation = await context.ChatConversations
             .Include(item => item.User)
             .Include(item => item.Vet)
             .Include(item => item.Messages)
-            .FirstOrDefaultAsync(item => item.UserId == currentUserId && item.VetId == request.VetId);
+            .FirstOrDefaultAsync(item => item.UserId == firstParticipantId && item.VetId == secondParticipantId);
 
         if (conversation is null)
         {
             conversation = new ChatConversation
             {
-                UserId = currentUserId.Value,
-                VetId = request.VetId,
+                UserId = firstParticipantId,
+                VetId = secondParticipantId,
                 CreatedAtUtc = DateTime.UtcNow
             };
 
@@ -107,15 +118,41 @@ public class ChatController(PetCareJordanContext context) : ControllerBase
                 .FirstAsync(item => item.Id == conversation.Id);
         }
 
+        var openingText = request.OpeningMessage?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(openingText) &&
+            !conversation.Messages.Any(message =>
+                message.SenderId == currentUserId.Value &&
+                message.Message == openingText))
+        {
+            var message = new ChatMessage
+            {
+                ConversationId = conversation.Id,
+                SenderId = currentUserId.Value,
+                Message = openingText,
+                SentAtUtc = DateTime.UtcNow,
+                IsReadByRecipient = false
+            };
+
+            context.ChatMessages.Add(message);
+            conversation.UpdatedAtUtc = message.SentAtUtc;
+            await context.SaveChangesAsync();
+            conversation.Messages.Add(message);
+        }
+
+        var counterpart = conversation.UserId == currentUserId.Value
+            ? conversation.Vet
+            : conversation.User;
+        var latestMessage = conversation.Messages.OrderByDescending(message => message.SentAtUtc).FirstOrDefault();
+
         var dto = new ChatConversationDto(
             conversation.Id,
             conversation.UserId,
             conversation.VetId,
-            conversation.Vet?.Id ?? request.VetId,
-            conversation.Vet?.FullName ?? "Unknown Vet",
-            UserRole.Vet,
-            conversation.Messages.OrderByDescending(message => message.SentAtUtc).FirstOrDefault()?.Message ?? string.Empty,
-            conversation.Messages.OrderByDescending(message => message.SentAtUtc).FirstOrDefault()?.SentAtUtc,
+            counterpart?.Id ?? participant.Id,
+            counterpart?.FullName ?? participant.FullName,
+            counterpart?.Role ?? participant.Role,
+            latestMessage?.Message ?? string.Empty,
+            latestMessage?.SentAtUtc,
             0,
             conversation.CreatedAtUtc,
             conversation.UpdatedAtUtc);

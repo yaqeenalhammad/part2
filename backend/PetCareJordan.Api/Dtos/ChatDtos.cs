@@ -29,6 +29,6 @@ public record ChatMessageDto(
     string Message,
     DateTime SentAtUtc);
 
-public record CreateConversationRequest(int VetId);
+public record CreateConversationRequest(int? ParticipantId, int? VetId, string? OpeningMessage);
 
 public record SendChatMessageRequest(string Message);
