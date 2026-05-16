@@ -196,6 +196,7 @@ public class AdoptionsController(PetCareJordanContext context, IWebHostEnvironme
             pet.WeightKg,
             PhotoUrlResolver.Resolve(pet.PhotoUrl, pet.Type, pet.Breed, environment),
             pet.City,
+            pet.LocationDetails,
             listing.Story,
             listing.ContactMethod,
             listing.ContactDetails,

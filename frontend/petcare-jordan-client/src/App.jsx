@@ -49,12 +49,15 @@ const emptyRegisterForms = {
 };
 
 const petTypeOptions = ["Cat", "Dog", "Bird", "Rabbit", "Other"];
+const wikimediaPhoto = (fileName) =>
+  `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(fileName)}?width=900`;
+
 const fallbackPetPhotos = {
-  Cat: "https://loremflickr.com/900/650/cat?lock=9001",
-  Dog: "https://loremflickr.com/900/650/dog?lock=9002",
-  Bird: "https://loremflickr.com/900/650/bird?lock=9003",
-  Rabbit: "https://loremflickr.com/900/650/rabbit?lock=9004",
-  Other: "https://loremflickr.com/900/650/pet?lock=9007"
+  Cat: wikimediaPhoto("A cat's direct gaze.jpg"),
+  Dog: wikimediaPhoto("Cute dog.jpg"),
+  Bird: wikimediaPhoto("Ara ararauna Luc Viatour.jpg"),
+  Rabbit: wikimediaPhoto("Cute rabbit.JPG"),
+  Other: wikimediaPhoto("Turtle.JPG")
 };
 const jordanTimeFormatter = new Intl.DateTimeFormat("en-JO", {
   dateStyle: "medium",
@@ -136,13 +139,40 @@ const jordanCityPositions = {
   Aqaba: { x: 29, y: 87 }
 };
 
+function normalizeJordanCity(city = "") {
+  const value = city.trim();
+  const lower = value.toLowerCase();
+  const match = Object.keys(jordanCityPositions).find((name) => name.toLowerCase() === lower);
+  return match ?? value;
+}
+
+function countBy(items, getKey) {
+  return items.reduce((totals, item) => {
+    const key = getKey(item);
+    if (!key) {
+      return totals;
+    }
+
+    return { ...totals, [key]: (totals[key] ?? 0) + 1 };
+  }, {});
+}
+
+function jordanMapQuery(location = "") {
+  const value = location.trim();
+  if (!value) {
+    return "Jordan";
+  }
+
+  return /jordan/i.test(value) ? value : `${value}, Jordan`;
+}
+
 function JordanPetsMap({ petsByCity, pets, selectedCity, onSelectCity }) {
   const entries = Object.entries(petsByCity);
   const maxPets = Math.max(...entries.map(([, value]) => value), 1);
   const mappedCities = entries.filter(([city]) => jordanCityPositions[city]);
   const activeCity = selectedCity && petsByCity[selectedCity] ? selectedCity : mappedCities[0]?.[0] ?? "";
   const selectedPets = pets.filter((pet) => pet.city === activeCity);
-  const mapQuery = selectedPets[0]?.locationDetails || activeCity || "Jordan";
+  const mapQuery = jordanMapQuery(selectedPets[0]?.locationDetails || activeCity);
 
   return (
     <div className="jordan-map-layout interactive">
@@ -201,10 +231,10 @@ function JordanPetsMap({ petsByCity, pets, selectedCity, onSelectCity }) {
                 />
                 <div>
                   <strong>{pet.name}</strong>
-                  <span>{pet.type} | {pet.breed}</span>
+                  <span>{pet.source} | {pet.type} | {pet.breed}</span>
                   <p>{pet.locationDetails || pet.city}</p>
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pet.locationDetails || pet.city)}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(jordanMapQuery(pet.locationDetails || pet.city))}`}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -438,7 +468,6 @@ function AuthPanel({
 function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [dashboard, setDashboard] = useState(null);
-  const [allPets, setAllPets] = useState([]);
   const [selectedMapCity, setSelectedMapCity] = useState("");
   const [adoptions, setAdoptions] = useState([]);
   const [adminAdoptions, setAdminAdoptions] = useState([]);
@@ -494,10 +523,22 @@ function App() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [dashboardData, petsData] = await Promise.all([api.getDashboard(), api.getPets()]);
+        const [dashboardData, adoptionData, lostData, foundData] = await Promise.all([
+          api.getDashboard(),
+          api.getAdoptions(),
+          api.getLostPets(),
+          api.getFoundPets()
+        ]);
         setDashboard(dashboardData);
-        setAllPets(petsData);
-        const topCity = Object.entries(dashboardData.petsByCity ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+        setAdoptions(adoptionData);
+        setLostPets(lostData);
+        setFoundPets(foundData);
+        const publicAnimalsByCity = countBy([
+          ...adoptionData.map((item) => ({ city: item.city })),
+          ...lostData.map((item) => ({ city: item.lastSeenPlace })),
+          ...foundData.map((item) => ({ city: item.foundPlace }))
+        ], (item) => normalizeJordanCity(item.city));
+        const topCity = Object.entries(publicAnimalsByCity).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
         setSelectedMapCity(topCity);
       } catch {
         setError("Could not load the API. Start the backend first, then refresh the page.");
@@ -525,10 +566,7 @@ function App() {
 
   useEffect(() => {
     if (!currentUser) {
-      setAdoptions([]);
       setAdminAdoptions([]);
-      setLostPets([]);
-      setFoundPets([]);
       setPendingLostPets([]);
       setPendingFoundPets([]);
       setMyLostPets([]);
@@ -759,6 +797,53 @@ function App() {
   const pendingAdoptions = adminAdoptions.filter((item) => item.status === "Pending");
   const publishedAdoptions = adminAdoptions.filter((item) => item.status === "Available");
   const rejectedAdoptions = adminAdoptions.filter((item) => item.status === "Rejected");
+  const publicAdoptions = currentUser?.role === "Admin" ? publishedAdoptions : adoptions;
+  const adoptionMapPets = publicAdoptions.map((item) => ({
+    id: `adoption-${item.id}`,
+    name: item.petName,
+    type: item.petType,
+    breed: item.breed,
+    city: normalizeJordanCity(item.city),
+    locationDetails: item.locationDetails || item.city,
+    photoUrl: item.photoUrl,
+    source: "Adoption"
+  }));
+  const lostMapPets = lostPets.map((item) => ({
+    id: `lost-${item.id}`,
+    name: item.petName,
+    type: item.petType,
+    breed: "Lost pet",
+    city: normalizeJordanCity(item.lastSeenPlace),
+    locationDetails: item.lastSeenPlace,
+    photoUrl: item.photoUrl,
+    source: "Lost"
+  }));
+  const foundMapPets = foundPets.map((item) => ({
+    id: `found-${item.id}`,
+    name: `Found ${item.petType}`,
+    type: item.petType,
+    breed: "Found pet",
+    city: normalizeJordanCity(item.foundPlace),
+    locationDetails: item.foundPlace,
+    photoUrl: item.photoUrl,
+    source: "Found"
+  }));
+  const publicMapPets = [...adoptionMapPets, ...lostMapPets, ...foundMapPets];
+  const publicPetsByCity = countBy(publicMapPets, (pet) => pet.city);
+  const publicPetsByType = countBy(publicMapPets, (pet) => pet.type);
+  const dashboardView = dashboard
+    ? {
+        ...dashboard,
+        petsForAdoption: publicAdoptions.length,
+        lostReports: lostPets.length,
+        foundReports: foundPets.length,
+        petsByType: publicMapPets.length > 0 ? publicPetsByType : dashboard.petsByType,
+        petsByCity: publicPetsByCity
+      }
+    : null;
+  const dashboardTypeTotal = dashboardView
+    ? Math.max(Object.values(dashboardView.petsByType ?? {}).reduce((total, value) => total + value, 0), 1)
+    : 1;
   const communityLostPets = canPublishCommunityPost
     ? lostPets.filter((item) => item.reporterId !== currentUser.id)
     : lostPets;
@@ -778,6 +863,18 @@ function App() {
       setActiveTab("overview");
     }
   }, [activeTab, visibleTabs]);
+
+  useEffect(() => {
+    const cities = Object.keys(publicPetsByCity);
+    if (cities.length === 0) {
+      setSelectedMapCity("");
+      return;
+    }
+
+    if (!selectedMapCity || !publicPetsByCity[selectedMapCity]) {
+      setSelectedMapCity(cities[0]);
+    }
+  }, [publicPetsByCity, selectedMapCity]);
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -834,10 +931,9 @@ function App() {
         weightKg: Number(adoptionPostForm.weightKg)
       };
       await api.createAdoptionPost(payload, currentUser.token);
-      const [dashboardData, petsData] = await Promise.all([api.getDashboard(), api.getPets()]);
+      const dashboardData = await api.getDashboard();
       setDashboard(dashboardData);
-      setAllPets(petsData);
-      setSelectedMapCity(adoptionPostForm.city);
+      setSelectedMapCity(normalizeJordanCity(adoptionPostForm.city));
 
       setAdoptionPostForm(createInitialAdoptionPostForm(currentUser));
       setAdoptionNotice("Adoption post sent successfully. It will appear after admin approval.");
@@ -977,6 +1073,16 @@ function App() {
       setAdminAdoptions((current) =>
         current.map((item) => (item.id === id ? updatedPost : item))
       );
+      if (updatedPost.status === "Available") {
+        setAdoptions((current) =>
+          current.some((item) => item.id === updatedPost.id)
+            ? current.map((item) => (item.id === updatedPost.id ? updatedPost : item))
+            : [updatedPost, ...current]
+        );
+        setSelectedMapCity(normalizeJordanCity(updatedPost.city));
+      } else {
+        setAdoptions((current) => current.filter((item) => item.id !== id));
+      }
       setAdoptionNotice(decision === "approve" ? "Adoption post approved and published." : "Adoption post rejected.");
       setError("");
     } catch (reviewError) {
@@ -1212,28 +1318,28 @@ function App() {
         {error ? <div className="alert">{error}</div> : null}
         {loading ? <div className="section-card">Loading project data...</div> : null}
 
-        {!loading && dashboard ? (
+        {!loading && dashboardView ? (
           <>
             {activeTab === "overview" ? (
               <div className="content-grid">
                 <SectionCard title="Analytics Dashboard" subtitle="A quick project snapshot for admins and supervisors.">
                   <div className="stats-grid">
-                    <StatCard label="Registered users" value={dashboard.totalUsers} accent="#0f766e" />
-                    <StatCard label="Veterinarians" value={dashboard.totalVets} accent="#a16207" />
-                    <StatCard label="Pets in system" value={dashboard.totalPets} accent="#0f172a" />
-                    <StatCard label="Pets for adoption" value={dashboard.petsForAdoption} accent="#c2410c" />
-                    <StatCard label="Active lost reports" value={dashboard.lostReports} accent="#be123c" />
-                    <StatCard label="Upcoming vaccines" value={dashboard.upcomingVaccines} accent="#1d4ed8" />
+                    <StatCard label="Registered users" value={dashboardView.totalUsers} accent="#0f766e" />
+                    <StatCard label="Veterinarians" value={dashboardView.totalVets} accent="#a16207" />
+                    <StatCard label="Pets in system" value={dashboardView.totalPets} accent="#0f172a" />
+                    <StatCard label="Pets for adoption" value={dashboardView.petsForAdoption} accent="#c2410c" />
+                    <StatCard label="Active lost reports" value={dashboardView.lostReports} accent="#be123c" />
+                    <StatCard label="Upcoming vaccines" value={dashboardView.upcomingVaccines} accent="#1d4ed8" />
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Pets By Type" subtitle="Distribution of demo pets across the platform.">
+                <SectionCard title="Public Animals By Type" subtitle="Distribution across adoption, lost, and found posts.">
                   <div className="bar-list">
-                    {Object.entries(dashboard.petsByType).filter(([label]) => Number.isNaN(Number(label))).map(([label, value]) => (
+                    {Object.entries(dashboardView.petsByType).filter(([label]) => Number.isNaN(Number(label))).map(([label, value]) => (
                       <div key={label} className="bar-row">
                         <span>{label}</span>
                         <div className="bar-track">
-                          <div className="bar-fill" style={{ width: `${(value / dashboard.totalPets) * 100}%` }} />
+                          <div className="bar-fill" style={{ width: `${(value / dashboardTypeTotal) * 100}%` }} />
                         </div>
                         <strong>{value}</strong>
                       </div>
@@ -1241,10 +1347,10 @@ function App() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Interactive Pets Map" subtitle="Click a city marker to see each pet's exact area and street.">
+                <SectionCard title="Interactive Public Pets Map" subtitle="Click a city marker to see adoption, lost, and found animals listed there.">
                   <JordanPetsMap
-                    petsByCity={dashboard.petsByCity}
-                    pets={allPets}
+                    petsByCity={dashboardView.petsByCity}
+                    pets={publicMapPets}
                     selectedCity={selectedMapCity}
                     onSelectCity={setSelectedMapCity}
                   />

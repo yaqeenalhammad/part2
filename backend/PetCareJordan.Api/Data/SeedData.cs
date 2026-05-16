@@ -7,7 +7,7 @@ namespace PetCareJordan.Api.Data;
 public static class SeedData
 {
     private static string TaggedPhoto(string tag, int lockId) =>
-        $"https://loremflickr.com/900/650/{tag}?lock={lockId}";
+        PhotoUrlResolver.SeedPhoto(tag, lockId);
 
     private static readonly IReadOnlyDictionary<string, string> SeedPetPhotoUrls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -55,13 +55,17 @@ public static class SeedData
     {
         ["Shadow"] = TaggedPhoto("black-cat", 2001),
         ["Biscuit"] = TaggedPhoto("small-brown-dog", 2002),
-        ["Sunny"] = TaggedPhoto("yellow-bird", 2003)
+        ["Sunny"] = TaggedPhoto("yellow-bird", 2003),
+        ["Toto"] = TaggedPhoto("cat,tabby", 1005)
     };
 
     private static readonly IReadOnlyDictionary<string, string> SeedFoundReportPhotoUrls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["Grey cat found with no visible injury."] = TaggedPhoto("grey-cat", 3001),
-        ["White mixed-breed dog found near market."] = TaggedPhoto("white-dog", 3002)
+        ["Grey cat found with no visible injuries."] = TaggedPhoto("grey-cat", 3001),
+        ["White mixed-breed dog found near market."] = TaggedPhoto("white-dog", 3002),
+        ["Mixed white dog found near the market."] = TaggedPhoto("white-dog", 3002),
+        ["Small white rabbit found in a garden."] = TaggedPhoto("rabbit,white-rabbit", 1027)
     };
 
     private static readonly IReadOnlyDictionary<string, string> SeedPetLocationDetails = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -70,7 +74,7 @@ public static class SeedData
         ["PCJ-1002"] = "Amman, Abdoun, Cairo Street",
         ["PCJ-1003"] = "Irbid, Al-Husun, Main Street",
         ["PCJ-1004"] = "Zarqa, New Zarqa, 36th Street",
-        ["PCJ-1005"] = "Mafraq, King Talal Street",
+        ["PCJ-1005"] = "Amman, Al-Madina Street",
         ["PCJ-1006"] = "Aqaba, Al-Rabieh, Beach Road",
         ["PCJ-1007"] = "Madaba, City Center, Talal Street",
         ["PCJ-1008"] = "Salt, Al-Sarou, Salt Ring Road",
@@ -78,18 +82,18 @@ public static class SeedData
         ["PCJ-1010"] = "Amman, Khalda, Wasfi Al-Tal Street",
         ["PCJ-1011"] = "Amman, Sweifieh, Ali Nasouh Al-Taher Street",
         ["PCJ-1012"] = "Irbid, University District, University Street",
-        ["PCJ-1013"] = "Mafraq, Al-Hussein District",
+        ["PCJ-1013"] = "Zarqa, Al-Hussein District",
         ["PCJ-1014"] = "Salt, Downtown Salt, Hammam Street",
         ["PCJ-1015"] = "Amman, Jubeiha, Queen Rania Street",
-        ["PCJ-1016"] = "Mafraq, Al-Badiya Road",
-        ["PCJ-1017"] = "Karak, Al-Mazar, Castle Street",
+        ["PCJ-1016"] = "Madaba, Al-Badiya Road",
+        ["PCJ-1017"] = "Irbid, Al-Mazar Street",
         ["PCJ-1018"] = "Jerash, Al-Mastaba Road",
         ["PCJ-1019"] = "Aqaba, Third Area, King Hussein Street",
         ["PCJ-1020"] = "Amman, Dabouq, Al-Hijaz Street",
         ["PCJ-1021"] = "Salt, Al-Balqa, Prince Hasan Street",
         ["PCJ-1022"] = "Zarqa, Russeifa, Yajouz Road",
         ["PCJ-1023"] = "Amman, Marj Al-Hamam, Airport Road",
-        ["PCJ-1024"] = "Mafraq, Um Al-Jimal Road",
+        ["PCJ-1024"] = "Madaba, Um Al-Jimal Road",
         ["PCJ-1025"] = "Amman, Tabarbour, Al-Shahid Street",
         ["PCJ-1026"] = "Aqaba, South Beach Road",
         ["PCJ-1027"] = "Zarqa, Al-Dulayl Road",
@@ -120,7 +124,7 @@ public static class SeedData
             await EnsureRequiredDemoAccountsAsync(context, passwordService);
             await EnsureCommunityReportReportersAsync(context);
             await EnsureRealisticSeedPhotosAsync(context);
-            await EnsureExpandedDemoPetsAsync(context);
+            await EnsureCuratedPublicDemoDataAsync(context);
             await RemoveDemoChatArtifactsAsync(context);
             await RemoveDemoPostArtifactsAsync(context);
             return;
@@ -242,7 +246,7 @@ public static class SeedData
         await context.SaveChangesAsync();
         await NormalizeExistingEnglishTextAsync(context);
         await EnsureRealisticSeedPhotosAsync(context);
-        await EnsureExpandedDemoPetsAsync(context);
+        await EnsureCuratedPublicDemoDataAsync(context);
         await RemoveDemoChatArtifactsAsync(context);
         await RemoveDemoPostArtifactsAsync(context);
     }
@@ -293,46 +297,130 @@ public static class SeedData
         }
     }
 
-    private static async Task EnsureExpandedDemoPetsAsync(PetCareJordanContext context)
+    private static async Task EnsureCuratedPublicDemoDataAsync(PetCareJordanContext context)
     {
-        var existingCollarIds = (await context.Pets.Select(pet => pet.CollarId).ToListAsync())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var oldAdoptions = await context.AdoptionListings.ToListAsync();
+        var oldLostReports = await context.LostPetReports.ToListAsync();
+        var oldFoundReports = await context.FoundPetReports.ToListAsync();
+        var oldGeneratedPets = await context.Pets
+            .Where(pet => pet.CollarId.StartsWith("MAP-") || pet.CollarId.StartsWith("ADOPT-"))
+            .ToListAsync();
+
+        context.AdoptionListings.RemoveRange(oldAdoptions);
+        context.LostPetReports.RemoveRange(oldLostReports);
+        context.FoundPetReports.RemoveRange(oldFoundReports);
+        context.Pets.RemoveRange(oldGeneratedPets);
+        await context.SaveChangesAsync();
+
         var users = await context.Users.ToListAsync();
-        var fallbackOwner = users.FirstOrDefault(user => user.Role == UserRole.User);
-        if (fallbackOwner is null)
-        {
-            return;
-        }
+        var fallbackOwner = users.First(user => user.Role == UserRole.User || user.Role == UserRole.Admin);
 
         int OwnerId(string email) =>
             users.FirstOrDefault(user => string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))?.Id ?? fallbackOwner.Id;
 
-        var additionalPets = new List<Pet>
+        var publicPets = new List<Pet>
         {
-            new() { Name = "Mango", Type = PetType.Cat, Breed = "Ginger Domestic Shorthair", AgeInMonths = 11, Gender = PetGender.Male, CollarId = "PCJ-1037", Color = "Orange", City = "Amman", LocationDetails = SeedPetLocationDetails["PCJ-1037"], WeightKg = 3.8m, IsNeutered = true, Description = "Young orange cat who enjoys people and playtime.", PhotoUrl = SeedPetPhotoUrls["PCJ-1037"], OwnerId = OwnerId("lina@petcare.com") },
-            new() { Name = "Oscar", Type = PetType.Dog, Breed = "Beagle", AgeInMonths = 22, Gender = PetGender.Male, CollarId = "PCJ-1038", Color = "Tri-color", City = "Irbid", LocationDetails = SeedPetLocationDetails["PCJ-1038"], WeightKg = 12.6m, IsNeutered = false, Description = "Curious beagle with a friendly personality.", PhotoUrl = SeedPetPhotoUrls["PCJ-1038"], OwnerId = OwnerId("sara@petcare.com") },
-            new() { Name = "Cotton", Type = PetType.Rabbit, Breed = "White Rabbit", AgeInMonths = 7, Gender = PetGender.Female, CollarId = "PCJ-1027", Color = "White", City = "Zarqa", LocationDetails = SeedPetLocationDetails["PCJ-1027"], WeightKg = 1.2m, IsNeutered = false, Description = "Small rabbit used to indoor handling.", PhotoUrl = SeedPetPhotoUrls["PCJ-1027"], OwnerId = OwnerId("dina@petcare.com") },
-            new() { Name = "Sky", Type = PetType.Bird, Breed = "Parakeet", AgeInMonths = 15, Gender = PetGender.Female, CollarId = "PCJ-1028", Color = "Blue", City = "Salt", LocationDetails = SeedPetLocationDetails["PCJ-1028"], WeightKg = 0.04m, IsNeutered = false, Description = "Bright parakeet that responds well to gentle care.", PhotoUrl = SeedPetPhotoUrls["PCJ-1028"], OwnerId = OwnerId("tareq@petcare.com") },
-            new() { Name = "Misty", Type = PetType.Dog, Breed = "Poodle", AgeInMonths = 19, Gender = PetGender.Female, CollarId = "PCJ-1029", Color = "Cream", City = "Madaba", LocationDetails = SeedPetLocationDetails["PCJ-1029"], WeightKg = 8.3m, IsNeutered = true, Description = "Smart poodle who is comfortable around children.", PhotoUrl = SeedPetPhotoUrls["PCJ-1029"], OwnerId = OwnerId("rama@petcare.com") },
-            new() { Name = "Cleo", Type = PetType.Cat, Breed = "Calico", AgeInMonths = 21, Gender = PetGender.Female, CollarId = "PCJ-1030", Color = "Calico", City = "Jerash", LocationDetails = SeedPetLocationDetails["PCJ-1030"], WeightKg = 4.1m, IsNeutered = true, Description = "Gentle calico cat with a quiet temperament.", PhotoUrl = SeedPetPhotoUrls["PCJ-1030"], OwnerId = OwnerId("ahmad@petcare.com") },
-            new() { Name = "Atlas", Type = PetType.Other, Breed = "Turtle", AgeInMonths = 60, Gender = PetGender.Male, CollarId = "PCJ-1031", Color = "Green and brown", City = "Aqaba", LocationDetails = SeedPetLocationDetails["PCJ-1031"], WeightKg = 2.8m, IsNeutered = false, Description = "Healthy turtle with a stable feeding routine.", PhotoUrl = SeedPetPhotoUrls["PCJ-1031"], OwnerId = OwnerId("yaqeen.alhammad@petcare.com") },
-            new() { Name = "Dot", Type = PetType.Dog, Breed = "Dalmatian", AgeInMonths = 18, Gender = PetGender.Female, CollarId = "PCJ-1032", Color = "White and black", City = "Amman", LocationDetails = SeedPetLocationDetails["PCJ-1032"], WeightKg = 18.5m, IsNeutered = false, Description = "Active dalmatian who needs daily walks.", PhotoUrl = SeedPetPhotoUrls["PCJ-1032"], OwnerId = OwnerId("lina@petcare.com") },
-            new() { Name = "Rio", Type = PetType.Bird, Breed = "Parrot", AgeInMonths = 30, Gender = PetGender.Male, CollarId = "PCJ-1033", Color = "Green", City = "Irbid", LocationDetails = SeedPetLocationDetails["PCJ-1033"], WeightKg = 0.35m, IsNeutered = false, Description = "Social parrot that enjoys supervised interaction.", PhotoUrl = SeedPetPhotoUrls["PCJ-1033"], OwnerId = OwnerId("sara@petcare.com") },
-            new() { Name = "Onyx", Type = PetType.Rabbit, Breed = "Black Rabbit", AgeInMonths = 16, Gender = PetGender.Male, CollarId = "PCJ-1034", Color = "Black", City = "Karak", LocationDetails = SeedPetLocationDetails["PCJ-1034"], WeightKg = 1.5m, IsNeutered = true, Description = "Calm rabbit best suited for a peaceful home.", PhotoUrl = SeedPetPhotoUrls["PCJ-1034"], OwnerId = OwnerId("dina@petcare.com") },
-            new() { Name = "Peanut", Type = PetType.Other, Breed = "Hamster", AgeInMonths = 5, Gender = PetGender.Male, CollarId = "PCJ-1035", Color = "Brown and white", City = "Amman", LocationDetails = SeedPetLocationDetails["PCJ-1035"], WeightKg = 0.06m, IsNeutered = false, Description = "Tiny hamster with a complete cage setup.", PhotoUrl = SeedPetPhotoUrls["PCJ-1035"], OwnerId = OwnerId("tareq@petcare.com") },
-            new() { Name = "Duke", Type = PetType.Dog, Breed = "Labrador Puppy", AgeInMonths = 8, Gender = PetGender.Male, CollarId = "PCJ-1036", Color = "Yellow", City = "Zarqa", LocationDetails = SeedPetLocationDetails["PCJ-1036"], WeightKg = 9.4m, IsNeutered = false, Description = "Friendly labrador puppy ready for training.", PhotoUrl = SeedPetPhotoUrls["PCJ-1036"], OwnerId = OwnerId("rama@petcare.com") }
+            new() { Name = "Bella", Type = PetType.Dog, Breed = "Golden Retriever", AgeInMonths = 30, Gender = PetGender.Female, CollarId = "MAP-1001", Color = "Golden", City = "Amman", LocationDetails = "Amman, Abdoun, Cairo Street", WeightKg = 22.4m, IsNeutered = false, Description = "Friendly family dog who enjoys children and daily walks.", PhotoUrl = TaggedPhoto("dog,golden-retriever", 4001), OwnerId = OwnerId("yaqeen.alhammad@petcare.com") },
+            new() { Name = "Milo", Type = PetType.Cat, Breed = "Persian", AgeInMonths = 18, Gender = PetGender.Male, CollarId = "MAP-1002", Color = "White", City = "Amman", LocationDetails = "Amman, Jabal Al-Weibdeh, College Street", WeightKg = 4.2m, IsNeutered = true, Description = "Calm indoor cat who prefers a quiet home.", PhotoUrl = TaggedPhoto("cat,persian", 4002), OwnerId = OwnerId("lina@petcare.com") },
+            new() { Name = "Hazel", Type = PetType.Rabbit, Breed = "Mini Rex", AgeInMonths = 9, Gender = PetGender.Female, CollarId = "MAP-1003", Color = "Brown", City = "Amman", LocationDetails = "Amman, Khalda, Wasfi Al-Tal Street", WeightKg = 1.4m, IsNeutered = false, Description = "Curious rabbit with a gentle temperament.", PhotoUrl = TaggedPhoto("rabbit,mini-rex", 4003), OwnerId = OwnerId("sara@petcare.com") },
+            new() { Name = "Rocky", Type = PetType.Dog, Breed = "German Shepherd", AgeInMonths = 36, Gender = PetGender.Male, CollarId = "MAP-1004", Color = "Black and tan", City = "Aqaba", LocationDetails = "Aqaba, Al-Rabieh, Beach Road", WeightKg = 29.7m, IsNeutered = false, Description = "Loyal dog that needs an active adopter.", PhotoUrl = TaggedPhoto("dog,german-shepherd", 4004), OwnerId = OwnerId("ahmad@petcare.com") },
+            new() { Name = "Simba", Type = PetType.Cat, Breed = "Tabby", AgeInMonths = 24, Gender = PetGender.Male, CollarId = "MAP-1005", Color = "Brown", City = "Irbid", LocationDetails = "Irbid, University District, University Street", WeightKg = 5.1m, IsNeutered = true, Description = "Playful cat with lots of energy.", PhotoUrl = TaggedPhoto("cat,tabby", 4005), OwnerId = OwnerId("dina@petcare.com") },
+            new() { Name = "Daisy", Type = PetType.Rabbit, Breed = "Dutch Rabbit", AgeInMonths = 10, Gender = PetGender.Female, CollarId = "MAP-1006", Color = "Black and white", City = "Zarqa", LocationDetails = "Zarqa, New Zarqa, 36th Street", WeightKg = 1.7m, IsNeutered = false, Description = "Compact rabbit suited for indoor life.", PhotoUrl = TaggedPhoto("rabbit,dutch-rabbit", 4006), OwnerId = OwnerId("sara@petcare.com") },
+            new() { Name = "Nala", Type = PetType.Dog, Breed = "Husky", AgeInMonths = 28, Gender = PetGender.Female, CollarId = "MAP-1007", Color = "Grey and white", City = "Jerash", LocationDetails = "Jerash, Souf, Roman Road", WeightKg = 20.2m, IsNeutered = true, Description = "Energetic dog who loves long walks.", PhotoUrl = TaggedPhoto("dog,husky", 4007), OwnerId = OwnerId("rama@petcare.com") },
+            new() { Name = "Poppy", Type = PetType.Cat, Breed = "Scottish Fold", AgeInMonths = 20, Gender = PetGender.Female, CollarId = "MAP-1008", Color = "Silver", City = "Irbid", LocationDetails = "Irbid, Al-Husun, Main Street", WeightKg = 4.0m, IsNeutered = true, Description = "Quiet cat that likes window naps.", PhotoUrl = TaggedPhoto("cat,scottish-fold", 4008), OwnerId = OwnerId("ahmad@petcare.com") },
+            new() { Name = "Mochi", Type = PetType.Rabbit, Breed = "Lionhead", AgeInMonths = 13, Gender = PetGender.Male, CollarId = "MAP-1009", Color = "White and brown", City = "Jerash", LocationDetails = "Jerash, Al-Mastaba Road", WeightKg = 1.6m, IsNeutered = true, Description = "Fluffy rabbit that enjoys gentle handling.", PhotoUrl = TaggedPhoto("rabbit,lionhead", 4009), OwnerId = OwnerId("tareq@petcare.com") },
+            new() { Name = "Thor", Type = PetType.Dog, Breed = "Labrador", AgeInMonths = 32, Gender = PetGender.Male, CollarId = "MAP-1010", Color = "Black", City = "Zarqa", LocationDetails = "Zarqa, Jabal Tareq", WeightKg = 27.4m, IsNeutered = true, Description = "Trainable dog with a calm temperament.", PhotoUrl = TaggedPhoto("dog,labrador", 4010), OwnerId = OwnerId("yaqeen.alhammad@petcare.com") },
+            new() { Name = "Lulu", Type = PetType.Cat, Breed = "Siamese", AgeInMonths = 16, Gender = PetGender.Female, CollarId = "MAP-1011", Color = "Cream and brown", City = "Madaba", LocationDetails = "Madaba, City Center, Talal Street", WeightKg = 3.9m, IsNeutered = false, Description = "Talkative and affectionate cat.", PhotoUrl = TaggedPhoto("cat,siamese", 4011), OwnerId = OwnerId("dina@petcare.com") },
+            new() { Name = "Snow", Type = PetType.Rabbit, Breed = "Holland Lop", AgeInMonths = 12, Gender = PetGender.Female, CollarId = "MAP-1012", Color = "Cream", City = "Zarqa", LocationDetails = "Zarqa, Russeifa, Yajouz Road", WeightKg = 1.8m, IsNeutered = true, Description = "Gentle rabbit used to apartment life.", PhotoUrl = TaggedPhoto("rabbit,holland-lop", 4012), OwnerId = OwnerId("lina@petcare.com") },
+            new() { Name = "Max", Type = PetType.Dog, Breed = "Mixed Breed", AgeInMonths = 14, Gender = PetGender.Male, CollarId = "MAP-1013", Color = "Brown and white", City = "Irbid", LocationDetails = "Irbid, Al-Mazar Street", WeightKg = 11.5m, IsNeutered = true, Description = "Rescued dog ready for a second chance.", PhotoUrl = TaggedPhoto("dog,mixed-breed", 4013), OwnerId = OwnerId("rama@petcare.com") },
+            new() { Name = "Leo", Type = PetType.Cat, Breed = "Orange Tabby", AgeInMonths = 15, Gender = PetGender.Male, CollarId = "MAP-1014", Color = "Orange", City = "Salt", LocationDetails = "Salt, Al-Sarou, Salt Ring Road", WeightKg = 4.6m, IsNeutered = true, Description = "Curious social cat.", PhotoUrl = TaggedPhoto("cat,orange-tabby", 4014), OwnerId = OwnerId("tareq@petcare.com") },
+            new() { Name = "Cotton", Type = PetType.Rabbit, Breed = "White Rabbit", AgeInMonths = 7, Gender = PetGender.Female, CollarId = "MAP-1015", Color = "White", City = "Zarqa", LocationDetails = "Zarqa, Al-Dulayl Road", WeightKg = 1.2m, IsNeutered = false, Description = "Small rabbit used to indoor handling.", PhotoUrl = TaggedPhoto("rabbit,white-rabbit", 4015), OwnerId = OwnerId("sara@petcare.com") },
+            new() { Name = "Scout", Type = PetType.Other, Breed = "Turtle", AgeInMonths = 48, Gender = PetGender.Male, CollarId = "MAP-1016", Color = "Green", City = "Aqaba", LocationDetails = "Aqaba, South Beach Road", WeightKg = 2.3m, IsNeutered = false, Description = "Healthy turtle with a full habitat setup.", PhotoUrl = TaggedPhoto("turtle", 4016), OwnerId = OwnerId("ahmad@petcare.com") }
         };
 
-        var missingPets = additionalPets
-            .Where(pet => !existingCollarIds.Contains(pet.CollarId))
-            .ToList();
+        await context.Pets.AddRangeAsync(publicPets);
+        await context.SaveChangesAsync();
 
-        if (missingPets.Count == 0)
+        var petByCollarId = publicPets.ToDictionary(pet => pet.CollarId, StringComparer.OrdinalIgnoreCase);
+        var adoptions = new List<AdoptionListing>
+        {
+            new() { PetId = petByCollarId["MAP-1001"].Id, Story = "Family is relocating and wants Bella in a stable home.", ContactMethod = "Phone", ContactDetails = "0799001002", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-16) },
+            new() { PetId = petByCollarId["MAP-1002"].Id, Story = "Milo needs a quiet indoor adopter.", ContactMethod = "Phone", ContactDetails = "0799001003", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-15) },
+            new() { PetId = petByCollarId["MAP-1003"].Id, Story = "Hazel is suited for a calm apartment.", ContactMethod = "Email", ContactDetails = "sara@petcare.com", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-14) },
+            new() { PetId = petByCollarId["MAP-1004"].Id, Story = "Rocky needs space and daily exercise.", ContactMethod = "Phone", ContactDetails = "0799001008", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-13) },
+            new() { PetId = petByCollarId["MAP-1005"].Id, Story = "Simba is playful and ready for a family.", ContactMethod = "Phone", ContactDetails = "0799001007", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-12) },
+            new() { PetId = petByCollarId["MAP-1006"].Id, Story = "Daisy is easy to handle and healthy.", ContactMethod = "Phone", ContactDetails = "0799001004", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-11) },
+            new() { PetId = petByCollarId["MAP-1007"].Id, Story = "Nala needs an active adopter.", ContactMethod = "Phone", ContactDetails = "0799001009", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-10) },
+            new() { PetId = petByCollarId["MAP-1008"].Id, Story = "Poppy is quiet and litter trained.", ContactMethod = "Phone", ContactDetails = "0799001008", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-9) },
+            new() { PetId = petByCollarId["MAP-1009"].Id, Story = "Mochi is friendly and comfortable indoors.", ContactMethod = "Phone", ContactDetails = "0799001010", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-8) },
+            new() { PetId = petByCollarId["MAP-1010"].Id, Story = "Thor is trained and calm around people.", ContactMethod = "Phone", ContactDetails = "0799001002", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-7) },
+            new() { PetId = petByCollarId["MAP-1011"].Id, Story = "Lulu is affectionate and social.", ContactMethod = "Phone", ContactDetails = "0799001007", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-6) },
+            new() { PetId = petByCollarId["MAP-1012"].Id, Story = "Snow is gentle and used to apartment life.", ContactMethod = "Phone", ContactDetails = "0799001003", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-5) },
+            new() { PetId = petByCollarId["MAP-1013"].Id, Story = "Max is a rescue dog looking for a second chance.", ContactMethod = "Phone", ContactDetails = "0799001009", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-4) },
+            new() { PetId = petByCollarId["MAP-1014"].Id, Story = "Leo is curious and social.", ContactMethod = "Phone", ContactDetails = "0799001010", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-3) },
+            new() { PetId = petByCollarId["MAP-1015"].Id, Story = "Cotton is a young rabbit ready for a first home.", ContactMethod = "Phone", ContactDetails = "0799001004", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-2) },
+            new() { PetId = petByCollarId["MAP-1016"].Id, Story = "Scout comes with a basic turtle habitat.", ContactMethod = "Phone", ContactDetails = "0799001008", Status = AdoptionStatus.Available, PostedAtUtc = DateTime.UtcNow.AddDays(-1) }
+        };
+
+        var lostReports = new List<LostPetReport>
+        {
+            new() { PetName = "Shadow", PetType = PetType.Cat, Description = "Black cat with a green collar.", ApproximateAgeInMonths = 20, LastSeenPlace = "Amman, Jabal Amman, Rainbow Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-2), RewardAmount = 25, PhotoUrl = TaggedPhoto("black-cat", 4025), ContactName = "Lina Khalil", ContactPhone = "0799001003", Status = ReportStatus.Active, ReporterId = OwnerId("lina@petcare.com") },
+            new() { PetName = "Biscuit", PetType = PetType.Dog, Description = "Small brown friendly dog.", ApproximateAgeInMonths = 14, LastSeenPlace = "Irbid, University Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-1), RewardAmount = null, PhotoUrl = TaggedPhoto("small-brown-dog", 4022), ContactName = "Ahmad Shannaq", ContactPhone = "0799001008", Status = ReportStatus.Active, ReporterId = OwnerId("ahmad@petcare.com") },
+            new() { PetName = "Toto", PetType = PetType.Cat, Description = "Striped cat lost near the market.", ApproximateAgeInMonths = 15, LastSeenPlace = "Zarqa, Al-Hussein District", LastSeenDateUtc = DateTime.UtcNow.AddDays(-3), RewardAmount = 20, PhotoUrl = TaggedPhoto("cat,tabby", 4023), ContactName = "Sara Odeh", ContactPhone = "0799001004", Status = ReportStatus.Active, ReporterId = OwnerId("sara@petcare.com") },
+            new() { PetName = "Duke", PetType = PetType.Dog, Description = "Yellow labrador puppy with blue collar.", ApproximateAgeInMonths = 8, LastSeenPlace = "Amman, Tabarbour, Al-Shahid Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-4), RewardAmount = 30, PhotoUrl = TaggedPhoto("dog,labrador-puppy", 4026), ContactName = "Yaqeen Alhammad", ContactPhone = "0799001002", Status = ReportStatus.Active, ReporterId = OwnerId("yaqeen.alhammad@petcare.com") },
+            new() { PetName = "Cleo", PetType = PetType.Cat, Description = "Calico cat wearing a red collar.", ApproximateAgeInMonths = 21, LastSeenPlace = "Madaba, Mount Nebo Road", LastSeenDateUtc = DateTime.UtcNow.AddDays(-5), RewardAmount = 15, PhotoUrl = TaggedPhoto("cat,calico", 4027), ContactName = "Rama Azar", ContactPhone = "0799001009", Status = ReportStatus.Active, ReporterId = OwnerId("rama@petcare.com") },
+            new() { PetName = "Onyx", PetType = PetType.Rabbit, Description = "Black rabbit escaped from garden.", ApproximateAgeInMonths = 16, LastSeenPlace = "Irbid, Al-Husun, Petra Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-2), RewardAmount = 10, PhotoUrl = TaggedPhoto("rabbit,black-rabbit", 4028), ContactName = "Dina Majali", ContactPhone = "0799001007", Status = ReportStatus.Active, ReporterId = OwnerId("dina@petcare.com") },
+            new() { PetName = "Sandy", PetType = PetType.Cat, Description = "Sand colored house cat.", ApproximateAgeInMonths = 22, LastSeenPlace = "Zarqa, Russeifa, Yajouz Road", LastSeenDateUtc = DateTime.UtcNow.AddDays(-6), RewardAmount = null, PhotoUrl = TaggedPhoto("cat,domestic-shorthair", 4021), ContactName = "Tareq Fares", ContactPhone = "0799001010", Status = ReportStatus.Active, ReporterId = OwnerId("tareq@petcare.com") },
+            new() { PetName = "Mango", PetType = PetType.Cat, Description = "Ginger cat, very social.", ApproximateAgeInMonths = 11, LastSeenPlace = "Salt, Downtown Salt, Hammam Street", LastSeenDateUtc = DateTime.UtcNow.AddDays(-1), RewardAmount = 12, PhotoUrl = TaggedPhoto("cat,ginger-cat", 4029), ContactName = "Lina Khalil", ContactPhone = "0799001003", Status = ReportStatus.Active, ReporterId = OwnerId("lina@petcare.com") }
+        };
+
+        var foundReports = new List<FoundPetReport>
+        {
+            new() { PetType = PetType.Cat, Description = "Grey cat found with no visible injuries.", FoundPlace = "Amman, Abdoun, Cairo Street", FoundDateUtc = DateTime.UtcNow.AddDays(-1), PhotoUrl = TaggedPhoto("grey-cat", 3001), ContactName = "Nadine Shousha", ContactPhone = "0799001013", Status = ReportStatus.Active, ReporterId = OwnerId("lina@petcare.com") },
+            new() { PetType = PetType.Dog, Description = "White mixed-breed dog found near the market.", FoundPlace = "Amman, Al-Madina Street", FoundDateUtc = DateTime.UtcNow.AddDays(-2), PhotoUrl = TaggedPhoto("white-dog", 3002), ContactName = "Tareq Fares", ContactPhone = "0799001010", Status = ReportStatus.Active, ReporterId = OwnerId("tareq@petcare.com") },
+            new() { PetType = PetType.Rabbit, Description = "Small white rabbit found in a garden.", FoundPlace = "Irbid, Al-Husun, Yarmouk Road", FoundDateUtc = DateTime.UtcNow.AddDays(-1), PhotoUrl = TaggedPhoto("rabbit,white-rabbit", 1027), ContactName = "Mohammad Abbadi", ContactPhone = "0799001012", Status = ReportStatus.Active, ReporterId = OwnerId("sara@petcare.com") },
+            new() { PetType = PetType.Dog, Description = "Beagle found near a clinic.", FoundPlace = "Aqaba, Tala Bay Road", FoundDateUtc = DateTime.UtcNow.AddDays(-3), PhotoUrl = TaggedPhoto("dog,beagle", 4030), ContactName = "Ahmad Shannaq", ContactPhone = "0799001008", Status = ReportStatus.Active, ReporterId = OwnerId("ahmad@petcare.com") },
+            new() { PetType = PetType.Rabbit, Description = "Brown rabbit found near school.", FoundPlace = "Madaba, City Center, Talal Street", FoundDateUtc = DateTime.UtcNow.AddDays(-4), PhotoUrl = TaggedPhoto("rabbit", 4019), ContactName = "Rama Azar", ContactPhone = "0799001009", Status = ReportStatus.Active, ReporterId = OwnerId("rama@petcare.com") },
+            new() { PetType = PetType.Cat, Description = "Young cat found near clinic entrance.", FoundPlace = "Amman, Sweifieh, Ali Nasouh Al-Taher Street", FoundDateUtc = DateTime.UtcNow.AddDays(-2), PhotoUrl = TaggedPhoto("cat", 4018), ContactName = "Yaqeen Alhammad", ContactPhone = "0799001002", Status = ReportStatus.Active, ReporterId = OwnerId("yaqeen.alhammad@petcare.com") }
+        };
+
+        await context.AdoptionListings.AddRangeAsync(adoptions);
+        await context.LostPetReports.AddRangeAsync(lostReports);
+        await context.FoundPetReports.AddRangeAsync(foundReports);
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task RemoveExpandedDemoPetsAsync(PetCareJordanContext context)
+    {
+        var expandedDemoCollarIds = new[]
+        {
+            "PCJ-1027", "PCJ-1028", "PCJ-1029", "PCJ-1030", "PCJ-1031", "PCJ-1032",
+            "PCJ-1033", "PCJ-1034", "PCJ-1035", "PCJ-1036", "PCJ-1037", "PCJ-1038"
+        };
+
+        var adoptionListingsToRemove = await context.AdoptionListings
+            .Include(listing => listing.Pet)
+            .Where(listing => listing.Pet != null && expandedDemoCollarIds.Contains(listing.Pet.CollarId))
+            .ToListAsync();
+
+        if (adoptionListingsToRemove.Count > 0)
+        {
+            context.AdoptionListings.RemoveRange(adoptionListingsToRemove);
+            await context.SaveChangesAsync();
+        }
+
+        var petsToRemove = await context.Pets
+            .Where(pet => expandedDemoCollarIds.Contains(pet.CollarId) &&
+                !pet.MedicalRecords.Any() &&
+                !pet.Vaccinations.Any())
+            .ToListAsync();
+
+        if (petsToRemove.Count == 0)
         {
             return;
         }
 
-        await context.Pets.AddRangeAsync(missingPets);
+        context.Pets.RemoveRange(petsToRemove);
         await context.SaveChangesAsync();
     }
 

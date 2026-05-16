@@ -15,7 +15,24 @@ public class DashboardController(PetCareJordanContext context) : ControllerBase
     {
         var pets = await context.Pets.ToListAsync();
         var users = await context.Users.ToListAsync();
-        var listings = await context.AdoptionListings.ToListAsync();
+        var listings = await context.AdoptionListings
+            .Include(listing => listing.Pet)
+            .ToListAsync();
+        var availableAdoptionPets = listings
+            .Where(item => item.Status == AdoptionStatus.Available && item.Pet is not null)
+            .Select(item => item.Pet!)
+            .ToList();
+        var activeLostReports = await context.LostPetReports
+            .Where(item => item.Status == ReportStatus.Active)
+            .ToListAsync();
+        var activeFoundReports = await context.FoundPetReports
+            .Where(item => item.Status == ReportStatus.Active)
+            .ToListAsync();
+        var publicMapAnimals = availableAdoptionPets
+            .Select(pet => new MapAnimal(pet.Type.ToString(), NormalizeJordanCity(pet.City)))
+            .Concat(activeLostReports.Select(report => new MapAnimal(report.PetType.ToString(), NormalizeJordanCity(report.LastSeenPlace))))
+            .Concat(activeFoundReports.Select(report => new MapAnimal(report.PetType.ToString(), NormalizeJordanCity(report.FoundPlace))))
+            .ToList();
         var upcomingVaccineCount = await context.VaccinationRecords.CountAsync(item => !item.IsCompleted && item.DueDateUtc <= DateTime.UtcNow.AddDays(30));
 
         var summary = new DashboardSummaryDto(
@@ -23,12 +40,34 @@ public class DashboardController(PetCareJordanContext context) : ControllerBase
             users.Count(user => user.Role == UserRole.Vet),
             pets.Count,
             listings.Count(item => item.Status == AdoptionStatus.Available),
-            await context.LostPetReports.CountAsync(item => item.Status == ReportStatus.Active),
-            await context.FoundPetReports.CountAsync(item => item.Status == ReportStatus.Active),
+            activeLostReports.Count,
+            activeFoundReports.Count,
             upcomingVaccineCount,
-            pets.GroupBy(pet => pet.Type.ToString()).ToDictionary(group => group.Key, group => group.Count()),
-            pets.GroupBy(pet => pet.City).ToDictionary(group => group.Key, group => group.Count()));
+            publicMapAnimals.GroupBy(item => item.Type).ToDictionary(group => group.Key, group => group.Count()),
+            publicMapAnimals.GroupBy(item => item.City).ToDictionary(group => group.Key, group => group.Count()));
 
         return Ok(summary);
     }
+
+    private static string NormalizeJordanCity(string location)
+    {
+        var value = location.Trim();
+        var city = value.Split(',', '-', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? value;
+
+        return city.ToLowerInvariant() switch
+        {
+            "amman" => "Amman",
+            "irbid" => "Irbid",
+            "zarqa" => "Zarqa",
+            "aqaba" => "Aqaba",
+            "madaba" => "Madaba",
+            "salt" => "Salt",
+            "jerash" => "Jerash",
+            "mafraq" => "Mafraq",
+            "karak" => "Karak",
+            _ => city
+        };
+    }
+
+    private sealed record MapAnimal(string Type, string City);
 }

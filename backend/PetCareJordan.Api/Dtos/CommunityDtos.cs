@@ -11,6 +11,7 @@ public record AdoptionListingDto(
     decimal WeightKg,
     string PhotoUrl,
     string City,
+    string LocationDetails,
     string Story,
     string ContactMethod,
     string ContactDetails,
